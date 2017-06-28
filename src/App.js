@@ -2,6 +2,7 @@ import PropTypes from "prop-types"
 import bresenham from "bresenham"
 import React, { Component } from "react"
 import "./App.css"
+import floodFillScanline from "./floodFillScanline"
 
 const width = 256
 const height = 256
@@ -74,7 +75,7 @@ class Canvas extends Component {
     }
 }
 
-const tools = ["pencil", "brush", "eraser", "line", "rectangle", "elipse"]
+const tools = ["pencil", "brush", "eraser", "line", "rectangle", "elipse", "bucket"]
 
 function Tools ({ dispatch }) {
     return (
@@ -207,6 +208,17 @@ function setElipse (buffer, p0, p1) {
     }
 
     return buffer
+}
+
+function setFill (buffer, point) {
+    const dest = createBuffer(width, height)
+    const test = (x, y) => {
+        if (x < 0 || y < 0 || x >= width || y >= height) { return false }
+        return !dest[y][x] && !buffer[y][x]
+    }
+    const paint = (x, y) => { dest[y][x] = 1 }
+    floodFillScanline(point.x, point.y, width, height, false, test, paint)
+    return composite(buffer, dest)
 }
 
 function createBuffer (width, height) {
@@ -358,6 +370,12 @@ function reducer (state, type, payload) {
         return {
             pixels,
             startPoint: null,
+        }
+    }
+    if (state.tool === "bucket" && type === "down") {
+        const pixels = setFill(state.pixels, payload)
+        return {
+            pixels
         }
     }
     if (type === "up") {
