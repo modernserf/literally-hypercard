@@ -1,4 +1,5 @@
 import PropTypes from "prop-types"
+import bresenham from "bresenham"
 import React, { Component } from "react"
 import "./App.css"
 
@@ -157,18 +158,34 @@ function reducer (state, type, payload) {
     if (type === "selectBrush") {
         return { brush: payload }
     }
-    if (state.tool === "pencil" && (type === "down" || type === "drag")) {
+    if (state.tool === "pencil" && type === "down") {
         const px = setPencil(state, state.pixels, payload)
         return {
             lastPoint: payload,
             pixels: px
         }
     }
-    if (state.tool === "brush" && (type === "down" || type === "drag")) {
+    if (state.tool === "pencil" && type === "drag") {
+        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
+        const px = points.reduce((acc, point) => setPencil(state, acc, point), state.pixels)
+        return {
+            lastPoint: payload,
+            pixels: px
+        }
+    }
+    if (state.tool === "brush" && type === "down") {
         const px = setBrush(state, state.pixels, payload)
         return {
             lastPoint: payload,
             pixels: px,
+        }
+    }
+    if (state.tool === "brush" && type === "drag") {
+        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
+        const px = points.reduce((acc, point) => setBrush(state, acc, point), state.pixels)
+        return {
+            lastPoint: payload,
+            pixels: px
         }
     }
     if (type === "up") {
