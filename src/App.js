@@ -9,6 +9,48 @@ const width = 256
 const height = 256
 const scale = 1
 
+class Icon extends Component {
+    componentDidMount () {
+        if (this.ctx) { this.renderCanvas() }
+    }
+    shouldComponentUpdate () {
+        return false
+    }
+    initRef = (e) => {
+        this._ref = e
+        this.ctx = e.getContext("2d")
+    }
+    renderCanvas = () => {
+        const height = this.props.pixels.length
+        const width = this.props.pixels[0].length
+        this.ctx.fillStyle = "white"
+        this.ctx.fillRect(0,0, width << scale, height << scale)
+
+        this.ctx.fillStyle = "black"
+        for (let y = 0; y < height; y++) {
+            for(let x = 0; x < width; x++) {
+                if (this.props.pixels[y][x] === 1) {
+                    this.ctx.fillRect(
+                        x << scale,
+                        y << scale,
+                        1 << scale,
+                        1 << scale)
+                }
+            }
+        }
+    }
+    render () {
+        const height = this.props.pixels.length
+        const width = this.props.pixels[0].length
+
+        return (
+            <canvas style={{display: "inline-block"}} ref={this.initRef}
+                width={width << scale} height={height << scale}
+            />
+        )
+    }
+}
+
 class Canvas extends Component {
     static propTypes = {
         pixels: PropTypes.array.isRequired,
@@ -66,6 +108,7 @@ class Canvas extends Component {
     render () {
         return (
             <canvas ref={this.initRef}
+                className="main-canvas"
                 width={width << scale} height={height << scale}
                 onMouseDown={this.onMouseDown}
                 onMouseUp={this.onMouseUp}
@@ -94,11 +137,6 @@ function Tools ({ dispatch }) {
 }
 
 const brushes = [
-    { x: 0, y: 0,   pattern: [
-        [1]] },
-    { x: 0, y: 0,   pattern: [
-        [1,1],
-        [1,1]] },
     { x: -1, y: -1, pattern: [
         [1,1,1],
         [1,1,1],
@@ -108,17 +146,51 @@ const brushes = [
         [1,1,1,1],
         [1,1,1,1],
         [0,1,1,0]] },
+    { x: -3, y: -3, pattern: [
+        [0,0,1,1,1,0,0],
+        [0,1,1,1,1,1,0],
+        [1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1],
+        [0,1,1,1,1,1,0],
+        [0,0,1,1,1,0,0],
+    ] },
+    { x: -5, y: -5, pattern: [
+        [0,0,0,0,1,1,1,0,0,0,0],
+        [0,0,1,1,1,1,1,1,1,0,0],
+        [0,1,1,1,1,1,1,1,1,1,0],
+        [0,1,1,1,1,1,1,1,1,1,0],
+        [1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1],
+        [1,1,1,1,1,1,1,1,1,1,1],
+        [0,1,1,1,1,1,1,1,1,1,0],
+        [0,1,1,1,1,1,1,1,1,1,0],
+        [0,0,1,1,1,1,1,1,1,0,0],
+        [0,0,0,0,1,1,1,0,0,0,0],
+    ] },
 ]
 
-function Brushes ({ dispatch }) {
+const BrushButton = styled.button`
+    appearance: none;
+    display: block;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    background-color: white;
+    border-radius: none;
+    border: ${({ selected }) =>  selected ? "1px solid black" : "1px solid white"};
+`
+
+function Brushes ({ selected, dispatch }) {
     return (
         <div>
             <h3>brushes</h3>
-            <ul>{brushes.map((_,i) => (
+            <ul>{brushes.map(({ pattern },i) => (
                 <li key={i}>
-                    <button onClick={() => dispatch("selectBrush", i)}>
-                        {i}
-                    </button>
+                    <BrushButton selected={selected === i}
+                        onClick={() => dispatch("selectBrush", i)}>
+                        <Icon pixels={pattern} />
+                    </BrushButton>
                 </li>
             ))}</ul>
         </div>
@@ -126,33 +198,70 @@ function Brushes ({ dispatch }) {
 }
 
 const patterns = [
-    [[-1]],
-    [[1]],
     [
-        [-1,1],
-        [1,-1],
+        [-1,-1,-1,-1],
+        [-1,-1,-1,-1],
+        [-1,-1,-1,-1],
+        [-1,-1,-1,-1],
+    ],
+    [
+        [1,1,1,1],
+        [1,1,1,1],
+        [1,1,1,1],
+        [1,1,1,1],
+    ],
+    [
+        [-1,1,-1,1],
+        [1,-1,1,-1],
+        [-1,1,-1,1],
+        [1,-1,1,-1],
     ],
     [
         [-1,1,1,1],
         [1,1,1,1],
         [1,1,-1,1],
+        [1,1,1,1],
     ],
     [
         [-1,-1,1,-1],
         [-1,-1,-1,-1],
-        [1,-1,-1,-1]
+        [1,-1,-1,-1],
+        [-1,-1,-1,-1],
     ]
 ]
 
-function Patterns ({ dispatch }) {
+const PatternButton = styled.button`
+    appearance: none;
+    display: block;
+    padding: 1px;
+    margin: 0;
+    background-color: white;
+    border-radius: none;
+    border: ${({ selected }) =>  selected ? "1px solid black" : "1px solid #ccc"};
+    line-height: 0;
+`
+
+function Patterns ({ selected, dispatch }) {
     return (
         <div>
             <h3>patterns</h3>
-            <ul>{patterns.map((_,i) => (
+            <ul>{patterns.map((pattern,i) => (
                 <li key={i}>
-                    <button onClick={() => dispatch("selectPattern", i)}>
-                        {i}
-                    </button>
+                    <PatternButton selected={selected === i}
+                        onClick={() => dispatch("selectPattern", i)}>
+                        <div>
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                        </div>
+                        <div>
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                            <Icon pixels={pattern} />
+                        </div>
+                    </PatternButton>
                 </li>
             ))}</ul>
         </div>
@@ -182,11 +291,13 @@ function setBrush (buffer, point, brush, patternID) {
     const { x: offsetX, y: offsetY, pattern } = brushes[brush]
     for (let y = 0; y < pattern.length; y++) {
         for (let x = 0; x < pattern[y].length; x++) {
-            drawPattern(
-                buffer,
-                point.x + offsetX + x,
-                point.y + offsetY + y,
-                patternID)
+            if (pattern[y][x]) {
+                drawPattern(
+                    buffer,
+                    point.x + offsetX + x,
+                    point.y + offsetY + y,
+                    patternID)
+            }
         }
     }
     return buffer
@@ -303,6 +414,8 @@ const initState = {
     pixels: createBuffer(width, height),
     startPoint: null,
     lastPoint: null,
+    clipboard: null,
+    selection: null,
 }
 
 function reducer (state, type, payload) {
