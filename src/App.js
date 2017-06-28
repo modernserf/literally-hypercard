@@ -2,10 +2,9 @@ import PropTypes from "prop-types"
 import React, { Component } from "react"
 import "./App.css"
 
-const width = 512
-const height = 342
+const width = 256
+const height = 256
 const scale = 1
-const px = 1 << scale
 
 class Canvas extends Component {
     static propTypes = {
@@ -32,30 +31,34 @@ class Canvas extends Component {
         this.ctx.fillStyle = "black"
         for (let y = 0; y < height; y++) {
             for(let x = 0; x < width; x++) {
-                if (this.props.pixels[y * width + x]) {
-                    this.ctx.fillRect(x << scale,y << scale, px,px)
+                if (this.props.pixels[y][x]) {
+                    this.ctx.fillRect(
+                        x << scale,
+                        y << scale,
+                        1 << scale,
+                        1 << scale)
                 }
             }
         }
         requestAnimationFrame(this.renderCanvas)
     }
-    getIndex = (e) => {
-        const { top, left } = e.target.getBoundingClientRect()
+    getPoint = (e) => {
+        const { top, left } = this._ref.getBoundingClientRect()
         const x = e.clientX - left
         const y = e.clientY - top
-        return (y >> scale) * width + (x >> scale)
+        return { x: x >> scale, y: y >> scale }
     }
     onMouseDown = (e) => {
         this.setState({ mouseDown: true })
-        this.props.dispatch("down", this.getIndex(e))
+        this.props.dispatch("down", this.getPoint(e))
     }
     onMouseMove = (e) => {
         const msg = this.state.mouseDown ? "drag" : "move"
-        this.props.dispatch(msg, this.getIndex(e))
+        this.props.dispatch(msg, this.getPoint(e))
     }
     onMouseUp = (e) => {
         this.setState({ mouseDown: false })
-        this.props.dispatch("up", this.getIndex(e))
+        this.props.dispatch("up", this.getPoint(e))
     }
     render () {
         return (
@@ -118,20 +121,34 @@ function Brushes ({ dispatch }) {
     )
 }
 
-function setBrush (state, i) {
-    const { x, y, pattern } = brushes[state.brush]
-    const px = state.pixels.slice(0)
-    const offset = i + x + (width * y)
-    for (let _y = 0; _y < pattern.length; _y++) {
-        for (let _x = 0; _x < pattern[_y].length; _x++) {
-            if (pattern[_y][_x]) {
-                px[offset + _y * width + _x] = 1
+function setPencil (state, buffer, point) {
+    buffer[point.y][point.x] = 1
+    return buffer
+}
+
+function setBrush (state, buffer, point) {
+    const { x: offsetX, y: offsetY, pattern } = brushes[state.brush]
+    for (let y = 0; y < pattern.length; y++) {
+        for (let x = 0; x < pattern[y].length; x++) {
+            if (pattern[y][x]) {
+                buffer[point.y + offsetY + y][point.x + offsetX + x] = 1
             }
         }
     }
-    return px
+    return buffer
 }
 
+function createBuffer (width, height) {
+    return Array(height).fill(0).map(() =>
+        Array(width).fill(0))
+}
+
+const initState = {
+    tool: "pencil",
+    brush: 3,
+    pixels: createBuffer(width, height),
+    lastPoint: null,
+}
 
 function reducer (state, type, payload) {
     if (type === "selectTool") {
@@ -141,22 +158,26 @@ function reducer (state, type, payload) {
         return { brush: payload }
     }
     if (state.tool === "pencil" && (type === "down" || type === "drag")) {
-        const px = state.pixels.slice(0)
-        px[payload] = 1
-        return { pixels: px }
+        const px = setPencil(state, state.pixels, payload)
+        return {
+            lastPoint: payload,
+            pixels: px
+        }
     }
     if (state.tool === "brush" && (type === "down" || type === "drag")) {
-        const px = setBrush(state, payload)
-        return { pixels: px }
+        const px = setBrush(state, state.pixels, payload)
+        return {
+            lastPoint: payload,
+            pixels: px,
+        }
+    }
+    if (type === "up") {
+        return { lastPoint: null }
     }
 }
 
 class App extends Component {
-    state = {
-        tool: "pencil",
-        brush: 3,
-        pixels: Array(width * height).fill(0),
-    }
+    state = initState
     dispatch = (type, payload) => {
         this.setState((state) => reducer(state, type, payload) || {})
     }
