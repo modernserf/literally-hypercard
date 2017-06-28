@@ -74,7 +74,7 @@ class Canvas extends Component {
     }
 }
 
-const tools = ["pencil", "brush", "eraser"]
+const tools = ["pencil", "brush", "eraser", "line"]
 
 function Tools ({ dispatch }) {
     return (
@@ -147,6 +147,19 @@ function createBuffer (width, height) {
         Array(width).fill(0))
 }
 
+function composite (bottom, top) {
+    if (!top) { return bottom }
+    const out = []
+    for (let y = 0; y < height; y++) {
+        const line = []
+        for (let x = 0; x < width; x++) {
+            line.push(bottom[y][x] | top[y][x])
+        }
+        out.push(line)
+    }
+    return out
+}
+
 const initState = {
     tool: "pencil",
     brush: 3,
@@ -184,6 +197,7 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "brush" && type === "drag") {
+        if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const px = points.reduce((acc, point) => setBrush(state, acc, point, 1), state.pixels)
         return {
@@ -199,11 +213,39 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "eraser" && type === "drag") {
+        if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const px = points.reduce((acc, point) => setBrush(state, acc, point, 0), state.pixels)
         return {
             lastPoint: payload,
             pixels: px
+        }
+    }
+    if (state.tool === "line" && type === "down") {
+        const pixels = setPencil(state, state.pixels, payload)
+        return {
+            startPoint: payload,
+            pixels,
+        }
+    }
+    if (state.tool === "line" && type === "drag") {
+        if (!state.startPoint) { return }
+        const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
+        const preview = points.reduce(
+            (acc, point) => setBrush(state, acc, point, 1),
+            createBuffer(width, height))
+        return {
+            preview,
+        }
+    }
+    if (state.tool === "line" && type === "up") {
+        if (!state.startPoint) { return }
+        const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
+        const pixels = points.reduce(
+            (acc, point) => setBrush(state, acc, point, 1), state.pixels)
+        return {
+            pixels,
+            startPoint: null,
         }
     }
     if (type === "up") {
@@ -219,7 +261,7 @@ class App extends Component {
     render() {
         return (
             <div className="App">
-                <Canvas pixels={this.state.pixels}
+                <Canvas pixels={composite(this.state.pixels, this.state.preview)}
                     dispatch={this.dispatch} />
                 <Tools selected={this.state.tool}
                     dispatch={this.dispatch} />
