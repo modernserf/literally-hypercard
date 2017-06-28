@@ -74,7 +74,7 @@ class Canvas extends Component {
     }
 }
 
-const tools = ["pencil", "brush", "eraser", "line"]
+const tools = ["pencil", "brush", "eraser", "line", "rectangle", "elipse"]
 
 function Tools ({ dispatch }) {
     return (
@@ -123,22 +123,89 @@ function Brushes ({ dispatch }) {
     )
 }
 
-function setPencil (state, buffer, point) {
-    buffer[point.y][point.x] = 1
+function setPoint (buffer, x, y, value) {
+    if (x < 0 || y < 0 || x >= width || y >= height) { return }
+    buffer[y][x] = value
+}
+
+function setPencil (buffer, point) {
+    setPoint(buffer, point.x, point.y, 1)
     return buffer
 }
 
-function setBrush (state, buffer, point, fill) {
-    const { x: offsetX, y: offsetY, pattern } = brushes[state.brush]
+function setBrush (brush, buffer, point, fill) {
+    const { x: offsetX, y: offsetY, pattern } = brushes[brush]
     for (let y = 0; y < pattern.length; y++) {
         for (let x = 0; x < pattern[y].length; x++) {
-            const _x = point.x + offsetX + x
-            const _y = point.y + offsetY + y
-            if (pattern[y][x] && buffer[_y] && _x > 0 && _x < buffer[_y].length) {
-                buffer[_y][_x] = fill
-            }
+            setPoint(buffer, point.x + offsetX + x, point.y + offsetY + y, fill)
         }
     }
+    return buffer
+}
+
+function setRectangle (buffer, { x: x0, y: y0 }, { x: x1, y: y1 }) {
+    const sides = [
+        // TODO: these lines can be rendered without bresenham
+        bresenham(x0, y0, x0, y1),
+        bresenham(x0, y0, x1, y0),
+        bresenham(x1, y0, x1, y1),
+        bresenham(x0, y1, x1, y1)
+    ]
+
+    for (const side of sides) {
+        for (const point of side) {
+            buffer[point.y][point.x] = 1
+        }
+    }
+    return buffer
+}
+
+function order (a, b) {
+    return a < b ? [a,b] : [b,a]
+}
+
+function setElipse (buffer, p0, p1) {
+    const [x0, x1] = order(p0.x, p1.x)
+    const [y0, y1] = order(p0.y, p1.y)
+    // radii
+    const width = (x1 - x0) >> 1
+    const height = (y1 - y0) >> 1
+    if (!width || !height) { return buffer }
+
+    const xc = x0 + width
+    const yc = y0 + height
+
+    const a2 = width * width
+    const b2 = height * height
+    const fa2 = 4 * a2
+    const fb2 = 4 * b2
+
+    /* first half */
+    for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
+        setPoint(buffer, xc + x, yc + y, 1)
+        setPoint(buffer, xc - x, yc + y, 1)
+        setPoint(buffer, xc + x, yc - y, 1)
+        setPoint(buffer, xc - x, yc - y, 1)
+        if (sigma >= 0) {
+            sigma += fa2 * (1 - y)
+            y--
+        }
+        sigma += b2 * ((4 * x) + 6)
+    }
+
+    /* second half */
+    for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
+        setPoint(buffer, xc + x, yc + y, 1)
+        setPoint(buffer, xc - x, yc + y, 1)
+        setPoint(buffer, xc + x, yc - y, 1)
+        setPoint(buffer, xc - x, yc - y, 1)
+        if (sigma >= 0) {
+            sigma += fb2 * (1 - x)
+            x--
+        }
+        sigma += a2 * ((4 * y) + 6)
+    }
+
     return buffer
 }
 
@@ -164,6 +231,7 @@ const initState = {
     tool: "pencil",
     brush: 3,
     pixels: createBuffer(width, height),
+    startPoint: null,
     lastPoint: null,
 }
 
@@ -175,7 +243,7 @@ function reducer (state, type, payload) {
         return { brush: payload }
     }
     if (state.tool === "pencil" && type === "down") {
-        const px = setPencil(state, state.pixels, payload)
+        const px = setPencil(state.pixels, payload)
         return {
             lastPoint: payload,
             pixels: px
@@ -183,14 +251,14 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "pencil" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setPencil(state, acc, point), state.pixels)
+        const px = points.reduce((acc, point) => setPencil(acc, point), state.pixels)
         return {
             lastPoint: payload,
             pixels: px
         }
     }
     if (state.tool === "brush" && type === "down") {
-        const px = setBrush(state, state.pixels, payload, 1)
+        const px = setBrush(state.brush, state.pixels, payload, 1)
         return {
             lastPoint: payload,
             pixels: px,
@@ -199,14 +267,14 @@ function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "drag") {
         if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setBrush(state, acc, point, 1), state.pixels)
+        const px = points.reduce((acc, point) => setBrush(state.brush, acc, point, 1), state.pixels)
         return {
             lastPoint: payload,
             pixels: px
         }
     }
     if (state.tool === "eraser" && type === "down") {
-        const px = setBrush(state, state.pixels, payload, 0)
+        const px = setBrush(state.brush, state.pixels, payload, 0)
         return {
             lastPoint: payload,
             pixels: px,
@@ -215,14 +283,14 @@ function reducer (state, type, payload) {
     if (state.tool === "eraser" && type === "drag") {
         if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setBrush(state, acc, point, 0), state.pixels)
+        const px = points.reduce((acc, point) => setBrush(state.brush, acc, point, 0), state.pixels)
         return {
             lastPoint: payload,
             pixels: px
         }
     }
     if (state.tool === "line" && type === "down") {
-        const pixels = setPencil(state, state.pixels, payload)
+        const pixels = setPencil(state.pixels, payload)
         return {
             startPoint: payload,
             pixels,
@@ -232,7 +300,7 @@ function reducer (state, type, payload) {
         if (!state.startPoint) { return }
         const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
         const preview = points.reduce(
-            (acc, point) => setBrush(state, acc, point, 1),
+            (acc, point) => setBrush(state.brush, acc, point, 1),
             createBuffer(width, height))
         return {
             preview,
@@ -242,7 +310,51 @@ function reducer (state, type, payload) {
         if (!state.startPoint) { return }
         const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
         const pixels = points.reduce(
-            (acc, point) => setBrush(state, acc, point, 1), state.pixels)
+            (acc, point) => setBrush(state.brush, acc, point, 1), state.pixels)
+        return {
+            pixels,
+            startPoint: null,
+        }
+    }
+    if (state.tool === "rectangle" && type === "down") {
+        const pixels = setPencil(state.pixels, payload)
+        return {
+            startPoint: payload,
+            pixels,
+        }
+    }
+    if (state.tool === "rectangle" && type === "drag") {
+        if (!state.startPoint) { return }
+
+        const preview = setRectangle(createBuffer(width, height), state.startPoint, payload, 1)
+        return {
+            preview,
+        }
+    }
+    if (state.tool === "rectangle" && type === "up") {
+        if (!state.startPoint) { return }
+        const pixels = setRectangle(state.pixels, state.startPoint, payload, 1)
+        return {
+            pixels,
+            startPoint: null,
+        }
+    }
+    if (state.tool === "elipse" && type === "down") {
+        return {
+            startPoint: payload,
+        }
+    }
+    if (state.tool === "elipse" && type === "drag") {
+        if (!state.startPoint) { return }
+
+        const preview = setElipse(createBuffer(width, height), state.startPoint, payload, 1)
+        return {
+            preview,
+        }
+    }
+    if (state.tool === "elipse" && type === "up") {
+        if (!state.startPoint) { return }
+        const pixels = setElipse(state.pixels, state.startPoint, payload, 1)
         return {
             pixels,
             startPoint: null,
