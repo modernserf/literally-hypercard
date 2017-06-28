@@ -27,7 +27,7 @@ class Canvas extends Component {
     }
     renderCanvas = () => {
         this.ctx.fillStyle = "white"
-        this.ctx.fillRect(0,0, width, height)
+        this.ctx.fillRect(0,0, width << scale, height << scale)
 
         this.ctx.fillStyle = "black"
         for (let y = 0; y < height; y++) {
@@ -68,12 +68,13 @@ class Canvas extends Component {
                 onMouseDown={this.onMouseDown}
                 onMouseUp={this.onMouseUp}
                 onMouseMove={this.onMouseMove}
+                onMouseLeave={this.onMouseUp}
             />
         )
     }
 }
 
-const tools = ["pencil", "brush"]
+const tools = ["pencil", "brush", "eraser"]
 
 function Tools ({ dispatch }) {
     return (
@@ -127,12 +128,14 @@ function setPencil (state, buffer, point) {
     return buffer
 }
 
-function setBrush (state, buffer, point) {
+function setBrush (state, buffer, point, fill) {
     const { x: offsetX, y: offsetY, pattern } = brushes[state.brush]
     for (let y = 0; y < pattern.length; y++) {
         for (let x = 0; x < pattern[y].length; x++) {
-            if (pattern[y][x]) {
-                buffer[point.y + offsetY + y][point.x + offsetX + x] = 1
+            const _x = point.x + offsetX + x
+            const _y = point.y + offsetY + y
+            if (pattern[y][x] && buffer[_y] && _x > 0 && _x < buffer[_y].length) {
+                buffer[_y][_x] = fill
             }
         }
     }
@@ -174,7 +177,7 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "brush" && type === "down") {
-        const px = setBrush(state, state.pixels, payload)
+        const px = setBrush(state, state.pixels, payload, 1)
         return {
             lastPoint: payload,
             pixels: px,
@@ -182,7 +185,22 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "brush" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setBrush(state, acc, point), state.pixels)
+        const px = points.reduce((acc, point) => setBrush(state, acc, point, 1), state.pixels)
+        return {
+            lastPoint: payload,
+            pixels: px
+        }
+    }
+    if (state.tool === "eraser" && type === "down") {
+        const px = setBrush(state, state.pixels, payload, 0)
+        return {
+            lastPoint: payload,
+            pixels: px,
+        }
+    }
+    if (state.tool === "eraser" && type === "drag") {
+        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
+        const px = points.reduce((acc, point) => setBrush(state, acc, point, 0), state.pixels)
         return {
             lastPoint: payload,
             pixels: px
