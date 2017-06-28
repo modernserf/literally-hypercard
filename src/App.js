@@ -34,7 +34,7 @@ class Canvas extends Component {
         this.ctx.fillStyle = "black"
         for (let y = 0; y < height; y++) {
             for(let x = 0; x < width; x++) {
-                if (this.props.pixels[y][x]) {
+                if (this.props.pixels[y][x] === 1) {
                     this.ctx.fillRect(
                         x << scale,
                         y << scale,
@@ -126,21 +126,21 @@ function Brushes ({ dispatch }) {
 }
 
 const patterns = [
-    [[0]],
+    [[-1]],
     [[1]],
     [
-        [0,1],
-        [1,0],
+        [-1,1],
+        [1,-1],
     ],
     [
-        [0,1,1,1],
+        [-1,1,1,1],
         [1,1,1,1],
-        [1,1,0,1],
+        [1,1,-1,1],
     ],
     [
-        [0,0,1,0],
-        [0,0,0,0],
-        [1,0,0,0]
+        [-1,-1,1,-1],
+        [-1,-1,-1,-1],
+        [1,-1,-1,-1]
     ]
 ]
 
@@ -284,7 +284,11 @@ function composite (bottom, top) {
     for (let y = 0; y < height; y++) {
         const line = []
         for (let x = 0; x < width; x++) {
-            line.push(bottom[y][x] | top[y][x])
+            if (top[y][x] === -1) {
+                line.push(0)
+            } else {
+                line.push(bottom[y][x] | top[y][x])
+            }
         }
         out.push(line)
     }
@@ -295,12 +299,14 @@ const initState = {
     tool: "pencil",
     brush: 3,
     pattern: 1,
+    undoBuffer: createBuffer(width, height),
     pixels: createBuffer(width, height),
     startPoint: null,
     lastPoint: null,
 }
 
 function reducer (state, type, payload) {
+    // set tools
     if (type === "selectTool") {
         return { tool: payload }
     }
@@ -310,66 +316,76 @@ function reducer (state, type, payload) {
     if (type === "selectPattern") {
         return { pattern: payload }
     }
+
+    if (type === "undo") {
+        return {
+            pixels: state.undoBuffer,
+            undoBuffer: state.pixels,
+        }
+    }
+
+    // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        const px = setPencil(state.pixels, payload)
+        const preview = setPencil(createBuffer(width, height), payload)
         return {
             lastPoint: payload,
-            pixels: px
+            preview,
         }
     }
     if (state.tool === "pencil" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setPencil(acc, point), state.pixels)
+        const preview = points.reduce((acc, point) => setPencil(acc, point), state.preview)
         return {
             lastPoint: payload,
-            pixels: px
+            preview,
         }
     }
+
     if (state.tool === "brush" && type === "down") {
-        const px = setBrush(state.pixels, payload, state.brush, state.pattern)
+        const preview = setBrush(createBuffer(width, height), payload, state.brush, state.pattern)
         return {
             lastPoint: payload,
-            pixels: px,
+            preview,
         }
     }
     if (state.tool === "brush" && type === "drag") {
-        if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) =>
+        const preview = points.reduce((acc, point) =>
             setBrush(acc, point, state.brush,  state.pattern),
-        state.pixels)
+        state.preview)
         return {
             lastPoint: payload,
-            pixels: px
+            preview,
         }
     }
+
     if (state.tool === "eraser" && type === "down") {
-        const px = setBrush(state.pixels, payload, state.brush, 0)
+        const preview = setBrush(createBuffer(width, height), payload, state.brush, 0)
         return {
             lastPoint: payload,
-            pixels: px,
+            preview
         }
     }
     if (state.tool === "eraser" && type === "drag") {
-        if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) =>
+        const preview = points.reduce((acc, point) =>
             setBrush(acc, point, state.brush, 0),
-        state.pixels)
+        state.preview)
         return {
             lastPoint: payload,
-            pixels: px
+            preview,
         }
     }
+
+    // shapelike tools -- stateless preview
     if (state.tool === "line" && type === "down") {
-        const pixels = setPencil(state.pixels, payload)
+        const preview = setPencil(createBuffer(width, height), payload)
         return {
             startPoint: payload,
-            pixels,
+            preview,
         }
     }
-    if (state.tool === "line" && type === "drag") {
-        if (!state.startPoint) { return }
+    if (state.tool === "line" && state.startPoint && type === "drag") {
         const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
         const preview = points.reduce(
             (acc, point) => setPencil(acc, point),
@@ -378,69 +394,50 @@ function reducer (state, type, payload) {
             preview,
         }
     }
-    if (state.tool === "line" && type === "up") {
-        if (!state.startPoint) { return }
-        const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
-        const pixels = points.reduce(
-            (acc, point) => setPencil(acc, point),
-            state.pixels)
-        return {
-            pixels,
-            startPoint: null,
-        }
-    }
+
     if (state.tool === "rectangle" && type === "down") {
-        const pixels = setPencil(state.pixels, payload)
+        const preview = setPencil(createBuffer(width, height), payload)
         return {
             startPoint: payload,
-            pixels,
+            preview,
         }
     }
-    if (state.tool === "rectangle" && type === "drag") {
-        if (!state.startPoint) { return }
-
+    if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         const preview = setRectangle(createBuffer(width, height), state.startPoint, payload, 1)
         return {
             preview,
         }
     }
-    if (state.tool === "rectangle" && type === "up") {
-        if (!state.startPoint) { return }
-        const pixels = setRectangle(state.pixels, state.startPoint, payload, 1)
-        return {
-            pixels,
-            startPoint: null,
-        }
-    }
+
     if (state.tool === "elipse" && type === "down") {
         return {
             startPoint: payload,
+            preview: createBuffer(width, height),
         }
     }
-    if (state.tool === "elipse" && type === "drag") {
-        if (!state.startPoint) { return }
-
+    if (state.tool === "elipse" &&  state.startPoint && type === "drag") {
         const preview = setElipse(createBuffer(width, height), state.startPoint, payload, 1)
         return {
             preview,
         }
     }
-    if (state.tool === "elipse" && type === "up") {
-        if (!state.startPoint) { return }
-        const pixels = setElipse(state.pixels, state.startPoint, payload, 1)
+
+    if (state.preview && type === "up") {
         return {
-            pixels,
             startPoint: null,
+            lastPoint: null,
+            undoBuffer: state.pixels,
+            pixels: composite(state.pixels, state.preview),
+            preview: null,
         }
     }
+
     if (state.tool === "bucket" && type === "down") {
         const pixels = setFill(state.pixels, payload, state.pattern)
         return {
+            undoBuffer: state.pixels,
             pixels
         }
-    }
-    if (type === "up") {
-        return { lastPoint: null }
     }
 }
 
@@ -468,6 +465,12 @@ class App extends Component {
                         dispatch={this.dispatch} />
                     <Patterns selected={this.state.pattern}
                         dispatch={this.dispatch} />
+                    <div>
+                        <h3>edit</h3>
+                        <button onClick={() => this.dispatch("undo")}>
+                            undo
+                        </button>
+                    </div>
                 </Flex>
             </div>
         )
