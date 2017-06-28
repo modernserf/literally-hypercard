@@ -1,6 +1,7 @@
 import PropTypes from "prop-types"
 import bresenham from "bresenham"
 import React, { Component } from "react"
+import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
 
@@ -124,9 +125,52 @@ function Brushes ({ dispatch }) {
     )
 }
 
+const patterns = [
+    [[0]],
+    [[1]],
+    [
+        [0,1],
+        [1,0],
+    ],
+    [
+        [0,1,1,1],
+        [1,1,1,1],
+        [1,1,0,1],
+    ],
+    [
+        [0,0,1,0],
+        [0,0,0,0],
+        [1,0,0,0]
+    ]
+]
+
+function Patterns ({ dispatch }) {
+    return (
+        <div>
+            <h3>patterns</h3>
+            <ul>{patterns.map((_,i) => (
+                <li key={i}>
+                    <button onClick={() => dispatch("selectPattern", i)}>
+                        {i}
+                    </button>
+                </li>
+            ))}</ul>
+        </div>
+    )
+}
+
+
 function setPoint (buffer, x, y, value) {
     if (x < 0 || y < 0 || x >= width || y >= height) { return }
     buffer[y][x] = value
+}
+
+function drawPattern (buffer, x, y, patternID) {
+    const pattern = patterns[patternID]
+    if (x < 0 || y < 0 || x >= width || y >= height) { return }
+    const h = pattern.length
+    const w = pattern[0].length
+    buffer[y][x] = pattern[y % h][x % w]
 }
 
 function setPencil (buffer, point) {
@@ -134,11 +178,15 @@ function setPencil (buffer, point) {
     return buffer
 }
 
-function setBrush (brush, buffer, point, fill) {
+function setBrush (buffer, point, brush, patternID) {
     const { x: offsetX, y: offsetY, pattern } = brushes[brush]
     for (let y = 0; y < pattern.length; y++) {
         for (let x = 0; x < pattern[y].length; x++) {
-            setPoint(buffer, point.x + offsetX + x, point.y + offsetY + y, fill)
+            drawPattern(
+                buffer,
+                point.x + offsetX + x,
+                point.y + offsetY + y,
+                patternID)
         }
     }
     return buffer
@@ -210,13 +258,17 @@ function setElipse (buffer, p0, p1) {
     return buffer
 }
 
-function setFill (buffer, point) {
+function setFill (buffer, point, patternID) {
     const dest = createBuffer(width, height)
+    const fillTest = composite(buffer, createBuffer(width, height))
     const test = (x, y) => {
         if (x < 0 || y < 0 || x >= width || y >= height) { return false }
-        return !dest[y][x] && !buffer[y][x]
+        return !fillTest[y][x]
     }
-    const paint = (x, y) => { dest[y][x] = 1 }
+    const paint = (x, y) => {
+        setPoint(fillTest, x, y, 1)
+        drawPattern(dest, x, y, patternID)
+    }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
     return composite(buffer, dest)
 }
@@ -242,6 +294,7 @@ function composite (bottom, top) {
 const initState = {
     tool: "pencil",
     brush: 3,
+    pattern: 1,
     pixels: createBuffer(width, height),
     startPoint: null,
     lastPoint: null,
@@ -253,6 +306,9 @@ function reducer (state, type, payload) {
     }
     if (type === "selectBrush") {
         return { brush: payload }
+    }
+    if (type === "selectPattern") {
+        return { pattern: payload }
     }
     if (state.tool === "pencil" && type === "down") {
         const px = setPencil(state.pixels, payload)
@@ -270,7 +326,7 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "brush" && type === "down") {
-        const px = setBrush(state.brush, state.pixels, payload, 1)
+        const px = setBrush(state.pixels, payload, state.brush, state.pattern)
         return {
             lastPoint: payload,
             pixels: px,
@@ -279,14 +335,16 @@ function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "drag") {
         if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setBrush(state.brush, acc, point, 1), state.pixels)
+        const px = points.reduce((acc, point) =>
+            setBrush(acc, point, state.brush,  state.pattern),
+        state.pixels)
         return {
             lastPoint: payload,
             pixels: px
         }
     }
     if (state.tool === "eraser" && type === "down") {
-        const px = setBrush(state.brush, state.pixels, payload, 0)
+        const px = setBrush(state.pixels, payload, state.brush, 0)
         return {
             lastPoint: payload,
             pixels: px,
@@ -295,7 +353,9 @@ function reducer (state, type, payload) {
     if (state.tool === "eraser" && type === "drag") {
         if (!state.lastPoint) { return }
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const px = points.reduce((acc, point) => setBrush(state.brush, acc, point, 0), state.pixels)
+        const px = points.reduce((acc, point) =>
+            setBrush(acc, point, state.brush, 0),
+        state.pixels)
         return {
             lastPoint: payload,
             pixels: px
@@ -312,7 +372,7 @@ function reducer (state, type, payload) {
         if (!state.startPoint) { return }
         const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
         const preview = points.reduce(
-            (acc, point) => setBrush(state.brush, acc, point, 1),
+            (acc, point) => setPencil(acc, point),
             createBuffer(width, height))
         return {
             preview,
@@ -322,7 +382,8 @@ function reducer (state, type, payload) {
         if (!state.startPoint) { return }
         const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
         const pixels = points.reduce(
-            (acc, point) => setBrush(state.brush, acc, point, 1), state.pixels)
+            (acc, point) => setPencil(acc, point),
+            state.pixels)
         return {
             pixels,
             startPoint: null,
@@ -373,7 +434,7 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "bucket" && type === "down") {
-        const pixels = setFill(state.pixels, payload)
+        const pixels = setFill(state.pixels, payload, state.pattern)
         return {
             pixels
         }
@@ -382,6 +443,13 @@ function reducer (state, type, payload) {
         return { lastPoint: null }
     }
 }
+
+const Flex = styled.div`
+    display: flex;
+    > div {
+        padding: 10px;
+    }
+`
 
 class App extends Component {
     state = initState
@@ -393,10 +461,14 @@ class App extends Component {
             <div className="App">
                 <Canvas pixels={composite(this.state.pixels, this.state.preview)}
                     dispatch={this.dispatch} />
-                <Tools selected={this.state.tool}
-                    dispatch={this.dispatch} />
-                <Brushes selected={this.state.brush}
-                    dispatch={this.dispatch} />
+                <Flex>
+                    <Tools selected={this.state.tool}
+                        dispatch={this.dispatch} />
+                    <Brushes selected={this.state.brush}
+                        dispatch={this.dispatch} />
+                    <Patterns selected={this.state.pattern}
+                        dispatch={this.dispatch} />
+                </Flex>
             </div>
         )
     }

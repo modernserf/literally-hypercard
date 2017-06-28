@@ -1,3 +1,14 @@
+* {
+    position: relative;
+    box-sizing: border-box;
+}
+
 canvas {
     border: 1px solid gray;
+}
+
+ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
 }
