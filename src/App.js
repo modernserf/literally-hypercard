@@ -269,7 +269,7 @@ function Patterns ({ selected, dispatch }) {
 }
 
 
-function setPoint (buffer, x, y, value) {
+function drawPoint (buffer, x, y, value) {
     if (x < 0 || y < 0 || x >= width || y >= height) { return }
     buffer[y][x] = value
 }
@@ -283,7 +283,7 @@ function drawPattern (buffer, x, y, patternID) {
 }
 
 function setPencil (buffer, point) {
-    setPoint(buffer, point.x, point.y, 1)
+    drawPoint(buffer, point.x, point.y, 1)
     return buffer
 }
 
@@ -303,20 +303,22 @@ function setBrush (buffer, point, brush, patternID) {
     return buffer
 }
 
-function setRectangle (buffer, { x: x0, y: y0 }, { x: x1, y: y1 }) {
-    const sides = [
-        // TODO: these lines can be rendered without bresenham
-        bresenham(x0, y0, x0, y1),
-        bresenham(x0, y0, x1, y0),
-        bresenham(x1, y0, x1, y1),
-        bresenham(x0, y1, x1, y1)
-    ]
+function setRectangle (buffer, p0, p1, withFill, patternID) {
+    const [x0, x1] = order(p0.x, p1.x)
+    const [y0, y1] = order(p0.y, p1.y)
 
-    for (const side of sides) {
-        for (const point of side) {
-            buffer[point.y][point.x] = 1
+    for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+            if (withFill) {
+                drawPattern(buffer, x, y, patternID)
+            }
+            // draw sides
+            if (y === y0 || y === y1 || x === x0 || x === x1) {
+                drawPoint(buffer, x, y, 1)
+            }
         }
     }
+
     return buffer
 }
 
@@ -324,7 +326,7 @@ function order (a, b) {
     return a < b ? [a,b] : [b,a]
 }
 
-function setElipse (buffer, p0, p1) {
+function setElipse (buffer, p0, p1, withFill, patternID) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
     // radii
@@ -342,10 +344,19 @@ function setElipse (buffer, p0, p1) {
 
     /* first half */
     for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        setPoint(buffer, xc + x, yc + y, 1)
-        setPoint(buffer, xc - x, yc + y, 1)
-        setPoint(buffer, xc + x, yc - y, 1)
-        setPoint(buffer, xc - x, yc - y, 1)
+        // draw border
+        drawPoint(buffer, xc + x, yc + y, 1)
+        drawPoint(buffer, xc - x, yc + y, 1)
+        drawPoint(buffer, xc + x, yc - y, 1)
+        drawPoint(buffer, xc - x, yc - y, 1)
+
+        if (withFill) {
+            for (let _x = xc - x; _x <= xc + x; _x++) {
+                drawPattern(buffer, _x, yc + y, patternID)
+                drawPattern(buffer, _x, yc - y, patternID)
+            }
+        }
+
         if (sigma >= 0) {
             sigma += fa2 * (1 - y)
             y--
@@ -355,10 +366,18 @@ function setElipse (buffer, p0, p1) {
 
     /* second half */
     for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        setPoint(buffer, xc + x, yc + y, 1)
-        setPoint(buffer, xc - x, yc + y, 1)
-        setPoint(buffer, xc + x, yc - y, 1)
-        setPoint(buffer, xc - x, yc - y, 1)
+        drawPoint(buffer, xc + x, yc + y, 1)
+        drawPoint(buffer, xc - x, yc + y, 1)
+        drawPoint(buffer, xc + x, yc - y, 1)
+        drawPoint(buffer, xc - x, yc - y, 1)
+
+        if (withFill) {
+            for (let _x = xc - x; _x <= xc + x; _x++) {
+                drawPattern(buffer, _x, yc + y, patternID)
+                drawPattern(buffer, _x, yc - y, patternID)
+            }
+        }
+
         if (sigma >= 0) {
             sigma += fb2 * (1 - x)
             x--
@@ -377,7 +396,7 @@ function setFill (buffer, point, patternID) {
         return !fillTest[y][x]
     }
     const paint = (x, y) => {
-        setPoint(fillTest, x, y, 1)
+        drawPoint(fillTest, x, y, 1)
         drawPattern(dest, x, y, patternID)
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
@@ -407,15 +426,14 @@ function composite (bottom, top) {
 }
 
 const initState = {
-    tool: "pencil",
+    tool: "elipse",
     brush: 3,
-    pattern: 1,
+    pattern: 2,
     undoBuffer: createBuffer(width, height),
     pixels: createBuffer(width, height),
     startPoint: null,
     lastPoint: null,
-    clipboard: null,
-    selection: null,
+    fillShapes: true,
 }
 
 function reducer (state, type, payload) {
@@ -435,6 +453,10 @@ function reducer (state, type, payload) {
             pixels: state.undoBuffer,
             undoBuffer: state.pixels,
         }
+    }
+
+    if (type === "toggleFillShapes") {
+        return { fillShapes: !state.fillShapes }
     }
 
     // brushlike tools -- accumulative preview
@@ -516,7 +538,12 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
-        const preview = setRectangle(createBuffer(width, height), state.startPoint, payload, 1)
+        const preview = setRectangle(
+            createBuffer(width, height),
+            state.startPoint,
+            payload,
+            state.fillShapes,
+            state.pattern)
         return {
             preview,
         }
@@ -529,7 +556,12 @@ function reducer (state, type, payload) {
         }
     }
     if (state.tool === "elipse" &&  state.startPoint && type === "drag") {
-        const preview = setElipse(createBuffer(width, height), state.startPoint, payload, 1)
+        const preview = setElipse(
+            createBuffer(width, height),
+            state.startPoint,
+            payload,
+            state.fillShapes,
+            state.pattern)
         return {
             preview,
         }
@@ -550,6 +582,12 @@ function reducer (state, type, payload) {
         return {
             undoBuffer: state.pixels,
             pixels
+        }
+    }
+
+    if (state.tool === "select" && type === "down") {
+        return {
+            startPoint: payload
         }
     }
 }
@@ -582,6 +620,12 @@ class App extends Component {
                         <h3>edit</h3>
                         <button onClick={() => this.dispatch("undo")}>
                             undo
+                        </button>
+                    </div>
+                    <div>
+                        <h3>fill shapes</h3>
+                        <button onClick={() => this.dispatch("toggleFillShapes")}>
+                            {this.state.fillShapes ? "filled" : "empty"}
                         </button>
                     </div>
                 </Flex>
