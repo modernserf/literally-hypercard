@@ -1,273 +1,13 @@
-import PropTypes from "prop-types"
 import bresenham from "bresenham"
 import React, { Component } from "react"
 import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
-
-const width = 256
-const height = 256
-const scale = 1
-
-class Icon extends Component {
-    componentDidMount () {
-        if (this.ctx) { this.renderCanvas() }
-    }
-    shouldComponentUpdate () {
-        return false
-    }
-    initRef = (e) => {
-        this._ref = e
-        this.ctx = e.getContext("2d")
-    }
-    renderCanvas = () => {
-        const height = this.props.pixels.length
-        const width = this.props.pixels[0].length
-        this.ctx.fillStyle = "white"
-        this.ctx.fillRect(0,0, width << scale, height << scale)
-
-        this.ctx.fillStyle = "black"
-        for (let y = 0; y < height; y++) {
-            for(let x = 0; x < width; x++) {
-                if (this.props.pixels[y][x] === 1) {
-                    this.ctx.fillRect(
-                        x << scale,
-                        y << scale,
-                        1 << scale,
-                        1 << scale)
-                }
-            }
-        }
-    }
-    render () {
-        const height = this.props.pixels.length
-        const width = this.props.pixels[0].length
-
-        return (
-            <canvas style={{display: "inline-block"}} ref={this.initRef}
-                width={width << scale} height={height << scale}
-            />
-        )
-    }
-}
-
-class Canvas extends Component {
-    static propTypes = {
-        pixels: PropTypes.array.isRequired,
-        dispatch: PropTypes.func.isRequired,
-    }
-    state = {
-        mouseDown: false,
-    }
-    componentDidMount () {
-        if (this.ctx) { this.renderCanvas() }
-    }
-    shouldComponentUpdate () {
-        return false
-    }
-    initRef = (e) => {
-        this._ref = e
-        this.ctx = e.getContext("2d")
-    }
-    renderCanvas = () => {
-        this.ctx.fillStyle = "white"
-        this.ctx.fillRect(0,0, width << scale, height << scale)
-
-        this.ctx.fillStyle = "black"
-        for (let y = 0; y < height; y++) {
-            for(let x = 0; x < width; x++) {
-                if (this.props.pixels[y][x] === 1) {
-                    this.ctx.fillRect(
-                        x << scale,
-                        y << scale,
-                        1 << scale,
-                        1 << scale)
-                }
-            }
-        }
-        requestAnimationFrame(this.renderCanvas)
-    }
-    getPoint = (e) => {
-        const { top, left } = this._ref.getBoundingClientRect()
-        const x = e.clientX - left
-        const y = e.clientY - top
-        return { x: x >> scale, y: y >> scale }
-    }
-    onMouseDown = (e) => {
-        this.setState({ mouseDown: true })
-        this.props.dispatch("down", this.getPoint(e))
-    }
-    onMouseMove = (e) => {
-        const msg = this.state.mouseDown ? "drag" : "move"
-        this.props.dispatch(msg, this.getPoint(e))
-    }
-    onMouseUp = (e) => {
-        this.setState({ mouseDown: false })
-        this.props.dispatch("up", this.getPoint(e))
-    }
-    render () {
-        return (
-            <canvas ref={this.initRef}
-                className="main-canvas"
-                width={width << scale} height={height << scale}
-                onMouseDown={this.onMouseDown}
-                onMouseUp={this.onMouseUp}
-                onMouseMove={this.onMouseMove}
-                onMouseLeave={this.onMouseUp}
-            />
-        )
-    }
-}
-
-const tools = ["pencil", "brush", "eraser", "line", "rectangle", "elipse", "bucket"]
-
-function Tools ({ dispatch }) {
-    return (
-        <div>
-            <h3>tools</h3>
-            <ul>{tools.map((tool) => (
-                <li key={tool}>
-                    <button onClick={() => dispatch("selectTool", tool)}>
-                        {tool}
-                    </button>
-                </li>
-            ))}</ul>
-        </div>
-    )
-}
-
-const brushes = [
-    { x: -1, y: -1, pattern: [
-        [1,1,1],
-        [1,1,1],
-        [1,1,1]] },
-    { x: -1, y: -1, pattern: [
-        [0,1,1,0],
-        [1,1,1,1],
-        [1,1,1,1],
-        [0,1,1,0]] },
-    { x: -3, y: -3, pattern: [
-        [0,0,1,1,1,0,0],
-        [0,1,1,1,1,1,0],
-        [1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1],
-        [0,1,1,1,1,1,0],
-        [0,0,1,1,1,0,0],
-    ] },
-    { x: -5, y: -5, pattern: [
-        [0,0,0,0,1,1,1,0,0,0,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [1,1,1,1,1,1,1,1,1,1,1],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [0,1,1,1,1,1,1,1,1,1,0],
-        [0,0,1,1,1,1,1,1,1,0,0],
-        [0,0,0,0,1,1,1,0,0,0,0],
-    ] },
-]
-
-const BrushButton = styled.button`
-    appearance: none;
-    display: block;
-    width: 40px;
-    height: 40px;
-    margin: 0;
-    background-color: white;
-    border-radius: none;
-    border: ${({ selected }) =>  selected ? "1px solid black" : "1px solid white"};
-`
-
-function Brushes ({ selected, dispatch }) {
-    return (
-        <div>
-            <h3>brushes</h3>
-            <ul>{brushes.map(({ pattern },i) => (
-                <li key={i}>
-                    <BrushButton selected={selected === i}
-                        onClick={() => dispatch("selectBrush", i)}>
-                        <Icon pixels={pattern} />
-                    </BrushButton>
-                </li>
-            ))}</ul>
-        </div>
-    )
-}
-
-const patterns = [
-    [
-        [-1,-1,-1,-1],
-        [-1,-1,-1,-1],
-        [-1,-1,-1,-1],
-        [-1,-1,-1,-1],
-    ],
-    [
-        [1,1,1,1],
-        [1,1,1,1],
-        [1,1,1,1],
-        [1,1,1,1],
-    ],
-    [
-        [-1,1,-1,1],
-        [1,-1,1,-1],
-        [-1,1,-1,1],
-        [1,-1,1,-1],
-    ],
-    [
-        [-1,1,1,1],
-        [1,1,1,1],
-        [1,1,-1,1],
-        [1,1,1,1],
-    ],
-    [
-        [-1,-1,1,-1],
-        [-1,-1,-1,-1],
-        [1,-1,-1,-1],
-        [-1,-1,-1,-1],
-    ]
-]
-
-const PatternButton = styled.button`
-    appearance: none;
-    display: block;
-    padding: 1px;
-    margin: 0;
-    background-color: white;
-    border-radius: none;
-    border: ${({ selected }) =>  selected ? "1px solid black" : "1px solid #ccc"};
-    line-height: 0;
-`
-
-function Patterns ({ selected, dispatch }) {
-    return (
-        <div>
-            <h3>patterns</h3>
-            <ul>{patterns.map((pattern,i) => (
-                <li key={i}>
-                    <PatternButton selected={selected === i}
-                        onClick={() => dispatch("selectPattern", i)}>
-                        <div>
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                        </div>
-                        <div>
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                            <Icon pixels={pattern} />
-                        </div>
-                    </PatternButton>
-                </li>
-            ))}</ul>
-        </div>
-    )
-}
-
+import { width, height, scale, tools, brushes, patterns } from "./config"
+import Patterns from "./Patterns"
+import Canvas from "./Canvas"
+import Brushes from "./Brushes"
+import Tools from "./Tools"
 
 function drawPoint (buffer, x, y, value) {
     if (x < 0 || y < 0 || x >= width || y >= height) { return }
@@ -303,7 +43,7 @@ function setBrush (buffer, point, brush, patternID) {
     return buffer
 }
 
-function setRectangle (buffer, p0, p1, withFill, patternID) {
+function setRectangle (buffer, p0, p1, withFill = false, patternID = 0) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
 
@@ -415,9 +155,27 @@ function composite (bottom, top) {
         const line = []
         for (let x = 0; x < width; x++) {
             if (top[y][x] === -1) {
-                line.push(0)
+                line.push(-1)
             } else {
                 line.push(bottom[y][x] | top[y][x])
+            }
+        }
+        out.push(line)
+    }
+    return out
+}
+
+function createSelection (buffer, p0, p1) {
+    const [x0, x1] = order(p0.x, p1.x)
+    const [y0, y1] = order(p0.y, p1.y)
+    const out = []
+    for (let y = 0; y < height; y++) {
+        const line = []
+        for (let x = 0; x < width; x++) {
+            if ((x0 <= x && x <= x1) && (y0 <= y && y <= y1)) {
+                line.push(1)
+            } else {
+                line.push(0)
             }
         }
         out.push(line)
@@ -434,6 +192,7 @@ const initState = {
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
+    selection: null,
 }
 
 function reducer (state, type, payload) {
@@ -567,7 +326,8 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.preview && type === "up") {
+    if (["pencil","brush","eraser","line","rectangle","elipse"].includes(state.tool) &&
+        state.preview && type === "up") {
         return {
             startPoint: null,
             lastPoint: null,
@@ -590,6 +350,22 @@ function reducer (state, type, payload) {
             startPoint: payload
         }
     }
+    if (state.tool === "select" && type === "drag") {
+        const preview = setRectangle(
+            createBuffer(width, height),
+            state.startPoint,
+            payload)
+        return {
+            preview,
+        }
+    }
+    if (state.tool === "select" && state.startPoint && type === "up") {
+        return {
+            preview: null,
+            startPoint: null,
+            selection: createSelection(state.pixels, state.startPoint, payload),
+        }
+    }
 }
 
 const Flex = styled.div`
@@ -605,17 +381,27 @@ class App extends Component {
         this.setState((state) => reducer(state, type, payload) || {})
     }
     render() {
+        const pixels = composite(
+            composite(this.state.pixels, this.state.preview),
+            this.state.selection)
+
         return (
             <div className="App">
-                <Canvas pixels={composite(this.state.pixels, this.state.preview)}
-                    dispatch={this.dispatch} />
+                <Canvas pixels={pixels}
+                    dispatch={this.dispatch}
+                    width={width} height={height} scale={scale}/>
                 <Flex>
                     <Tools selected={this.state.tool}
-                        dispatch={this.dispatch} />
+                        dispatch={this.dispatch}
+                        tools={tools}/>
                     <Brushes selected={this.state.brush}
-                        dispatch={this.dispatch} />
+                        dispatch={this.dispatch}
+                        scale={scale}
+                        brushes={brushes}/>
                     <Patterns selected={this.state.pattern}
-                        dispatch={this.dispatch} />
+                        dispatch={this.dispatch}
+                        patterns={patterns}
+                        scale={scale}/>
                     <div>
                         <h3>edit</h3>
                         <button onClick={() => this.dispatch("undo")}>
