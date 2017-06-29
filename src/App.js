@@ -3,7 +3,7 @@ import React, { Component } from "react"
 import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
-import { width, height, scale, tools, brushes, patterns } from "./config"
+import { colors, width, height, scale, tools, brushes, patterns } from "./config"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -145,7 +145,7 @@ function setFill (buffer, point, patternID) {
 
 function createBuffer (width, height) {
     return Array(height).fill(0).map(() =>
-        Array(width).fill(0))
+        Array(width).fill(colors.transparent))
 }
 
 function composite (bottom, top) {
@@ -154,10 +154,16 @@ function composite (bottom, top) {
     for (let y = 0; y < height; y++) {
         const line = []
         for (let x = 0; x < width; x++) {
-            if (top[y][x] === -1) {
-                line.push(-1)
+            if (top[y][x] === colors.transparent) {
+                line.push(bottom[y][x])
+            } else if (top[y][x] === colors.selection) {
+                if (bottom[y][x] === colors.black) {
+                    line.push(colors.white)
+                } else {
+                    line.push(colors.black)
+                }
             } else {
-                line.push(bottom[y][x] | top[y][x])
+                line.push(top[y][x])
             }
         }
         out.push(line)
@@ -173,14 +179,20 @@ function createSelection (buffer, p0, p1) {
         const line = []
         for (let x = 0; x < width; x++) {
             if ((x0 <= x && x <= x1) && (y0 <= y && y <= y1)) {
-                line.push(1)
+                line.push(colors.selection)
             } else {
-                line.push(0)
+                line.push(colors.transparent)
             }
         }
         out.push(line)
     }
     return out
+}
+
+function inSelection (selection, point) {
+    return !!selection &&
+        selection[point.y] &&
+        selection[point.y][point.x] === colors.selection
 }
 
 const initState = {
@@ -345,11 +357,26 @@ function reducer (state, type, payload) {
         }
     }
 
+    if (state.tool === "select" && type === "down" && inSelection(state.selection, payload)) {
+        return {
+            startPoint: payload,
+            movingSelection: true
+        }
+    }
+
     if (state.tool === "select" && type === "down") {
         return {
             startPoint: payload
         }
     }
+
+    if (state.tool === "select" && type === "drag" && state.movingSelection) {
+        return {
+            preview: blankSelection(state.selection),
+            translateSelection: translate(state.selection, state.startPoint, payload),
+        }
+    }
+
     if (state.tool === "select" && type === "drag") {
         const preview = setRectangle(
             createBuffer(width, height),
@@ -359,11 +386,26 @@ function reducer (state, type, payload) {
             preview,
         }
     }
+
+    if (state.tool === "select" && type === "up" && state.movingSelection) {
+        const copy = copySelection(state.pixels, state.selection)
+
+        return {
+            startPoint: null,
+            undoBuffer: state.pixels,
+            preview: null,
+            pixels: composite(
+                deleteSelection(state.pixels, state.selection),
+                copySelection(state.pixels, state.selection))
+        }
+    }
+
     if (state.tool === "select" && state.startPoint && type === "up") {
         return {
             preview: null,
             startPoint: null,
             selection: createSelection(state.pixels, state.startPoint, payload),
+            movingSelection: false,
         }
     }
 }

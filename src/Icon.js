@@ -1,5 +1,6 @@
 import PropTypes from "prop-types"
 import React, { Component } from "react"
+import { colors } from "./config"
 
 export default class Icon extends Component {
     static propTypes = {
@@ -26,7 +27,7 @@ export default class Icon extends Component {
         this.ctx.fillStyle = "black"
         for (let y = 0; y < height; y++) {
             for(let x = 0; x < width; x++) {
-                if (pixels[y][x] === 1) {
+                if (pixels[y][x] === colors.black) {
                     this.ctx.fillRect(
                         x << scale,
                         y << scale,
