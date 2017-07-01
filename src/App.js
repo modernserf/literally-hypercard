@@ -199,15 +199,19 @@ function reducer (state, type, payload) {
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
+        const value = getPixel(state.pixels, payload.x, payload.y) === colors.black ?
+            colors.white :
+            colors.black
         return {
             lastPoint: payload,
-            preview: drawPencil(createBuffer(state.width, state.height), payload)
+            pencilValue: value,
+            preview: drawPencil(createBuffer(state.width, state.height), payload, value)
         }
     }
     if (state.tool === "pencil" && type === "drag") {
         return {
             lastPoint: payload,
-            preview: drawPencil(state.preview, state.lastPoint, payload),
+            preview: drawPencil(state.preview, state.lastPoint, payload, state.pencilValue),
         }
     }
 
@@ -274,6 +278,7 @@ function reducer (state, type, payload) {
     if (["pencil","brush","eraser","line","rectangle","ellipse"].includes(state.tool) &&
         state.preview && type === "up") {
         return {
+            pencilValue: null,
             startPoint: null,
             lastPoint: null,
             undoBuffer: state.pixels,

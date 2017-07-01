@@ -11,11 +11,11 @@ export function drawPattern (buffer, pattern, x, y) {
     setPixel(buffer, x, y, px)
 }
 
-export function drawPencil (buffer, start, end) {
+export function drawPencil (buffer, start, end, value) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
 
     for (let i = 0; i < points.length; i++) {
-        setPixel(buffer, points[i].x, points[i].y, 1)
+        setPixel(buffer, points[i].x, points[i].y, value)
     }
     return buffer
 }
