@@ -76,7 +76,6 @@ export default class Canvas extends Component {
             onMouseLeave: this.onMouseUp,
         }
 
-
         return (
             <canvas ref={this.initRef}
                 className="main-canvas"
