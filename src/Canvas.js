@@ -1,13 +1,11 @@
 import PropTypes from "prop-types"
 import React, { Component } from "react"
-import { setImageData } from "./buffer"
+import { setImageData, getWidth, getHeight } from "./buffer"
 
 export default class Canvas extends Component {
     static propTypes = {
-        pixels: PropTypes.array.isRequired,
+        pixels: PropTypes.object.isRequired,
         dispatch: PropTypes.func.isRequired,
-        width: PropTypes.number.isRequired,
-        height: PropTypes.number.isRequired,
         scale: PropTypes.number.isRequired,
     }
     state = {
@@ -48,7 +46,9 @@ export default class Canvas extends Component {
         this.props.dispatch("up", this.getPoint(e))
     }
     render () {
-        const { width, height, scale } = this.props
+        const { pixels, scale } = this.props
+        const width = getWidth(pixels)
+        const height = getHeight(pixels)
         return (
             <canvas ref={this.initRef}
                 className="main-canvas"

@@ -1,45 +1,64 @@
-import { colors, width, height } from "./config"
+const colors = {
+    transparent: 0,
+    black: 1,
+    white: 2,
+    selection: 3,
+    erase: 4,
+}
 
 // buffer getter/setters
 export function getPixel (buffer, x, y) {
-    if (x < 0 || y < 0 || x >= width || y >= height) { return colors.transparent }
-    return buffer[y][x]
+    if (x < 0 || y < 0 || x >= buffer.width || y >= buffer.height) { return colors.transparent }
+    return buffer.data[x + y * buffer.width]
 }
 
 export function setPixel (buffer, x, y, value) {
-    if (x < 0 || y < 0 || x >= width || y >= height) { return }
-    buffer[y][x] = value
+    if (x < 0 || y < 0 || x >= buffer.width || y >= buffer.height) { return }
+    buffer.data[x + y * buffer.width] = value
+}
+
+function uncheckedSetPixel (buffer, x ,y, value) {
+    buffer.data[x + y * buffer.width] = value
 }
 
 export function getWidth (buffer) {
-    return buffer[0].length
+    return buffer.width
 }
 
 export function getHeight (buffer) {
-    return buffer.length
+    return buffer.height
+}
+
+export function createPattern (arr) {
+    const height = arr.length
+    const width = arr[0].length
+    const data = Uint8Array.from(arr.reduce((l, r) => l.concat(r)))
+    return { height, width, data }
 }
 
 export function createBuffer (width, height) {
-    return Array(height).fill(0).map(() =>
-        Array(width).fill(colors.transparent))
+    const data = new Uint8Array(height * width)
+    return { width, height, data }
 }
 
 export function composite (bottom, top) {
     if (!top) { return bottom }
-    const out = []
-    for (let y = 0; y < height; y++) {
-        const line = []
-        for (let x = 0; x < width; x++) {
+    const out = {
+        width: bottom.width,
+        height: bottom.height,
+        data: bottom.data.slice(0),
+    }
+    for (let y = 0; y < bottom.height; y++) {
+        for (let x = 0; x < bottom.width; x++) {
             const t = getPixel(top, x, y)
             if (t === colors.transparent) {
-                line.push(getPixel(bottom, x, y))
+                // do nothing
             } else if (t === colors.erase) {
-                line.push(colors.transparent)
+                uncheckedSetPixel(out, x, y, colors.transparent)
             } else {
-                line.push(t)
+                uncheckedSetPixel(out, x, y, t)
             }
         }
-        out.push(line)
     }
     return out
 }

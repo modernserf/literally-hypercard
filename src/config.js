@@ -1,3 +1,5 @@
+import { createPattern } from "./buffer"
+
 export const width = 256
 export const height = 256
 export const scale = 1
@@ -50,7 +52,7 @@ export const brushes = (() => {
             [_,_,X,X,X,X,X,X,X,_,_],
             [_,_,_,_,X,X,X,_,_,_,_]
         ],
-    ]
+    ].map(createPattern)
 })()
 
 export const patterns = (() => {
@@ -88,5 +90,5 @@ export const patterns = (() => {
             [X,_,_,_],
             [_,_,_,_],
         ]
-    ]
+    ].map(createPattern)
 })()

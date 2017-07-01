@@ -3,7 +3,7 @@ import React, { Component } from "react"
 import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
-import { colors, width, height, scale, tools, brushes, patterns } from "./config"
+import { colors, tools, brushes, patterns } from "./config"
 import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
@@ -143,6 +143,8 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
 }
 
 function setFill (buffer, point, patternID) {
+    const width = getWidth(buffer)
+    const height = getHeight(buffer)
     const dest = createBuffer(width, height)
     const fillTest = composite(buffer, createBuffer(width, height))
     const pattern = patterns[patternID]
@@ -160,7 +162,7 @@ function setFill (buffer, point, patternID) {
 
 
 
-function createSelection (buffer, p0, p1) {
+function createSelection (buffer, p0, p1, width, height) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
     const out = []
@@ -185,11 +187,14 @@ function inSelection (selection, point) {
 }
 
 const initState = {
+    width: 256,
+    height: 256,
+    scale: 1,
     tool: "brush",
     brush: 3,
     pattern: 1,
-    undoBuffer: createBuffer(width, height),
-    pixels: createBuffer(width, height),
+    undoBuffer: createBuffer(256, 256),
+    pixels: createBuffer(256, 256),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
@@ -221,7 +226,7 @@ function reducer (state, type, payload) {
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        const preview = drawPencil(createBuffer(width, height), payload)
+        const preview = drawPencil(createBuffer(state.width, state.height), payload)
         return {
             lastPoint: payload,
             preview,
@@ -237,7 +242,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "brush" && type === "down") {
-        const preview = drawBrush(createBuffer(width, height), payload, state.brush, state.pattern)
+        const preview = drawBrush(createBuffer(state.width, state.height), payload, state.brush, state.pattern)
         return {
             lastPoint: payload,
             preview,
@@ -255,7 +260,9 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "eraser" && type === "down") {
-        const preview = drawBrush(createBuffer(width, height), payload, state.brush, 0)
+        const preview = drawBrush(
+            createBuffer(state.width, state.height),
+            payload, state.brush, 0)
         return {
             lastPoint: payload,
             preview
@@ -281,13 +288,13 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
         return {
-            preview: drawLine(createBuffer(width, height), state.startPoint, payload)
+            preview: drawLine(createBuffer(state.width, state.height), state.startPoint, payload)
         }
     }
 
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         const preview = setRectangle(
-            createBuffer(width, height),
+            createBuffer(state.width, state.height),
             state.startPoint,
             payload,
             state.fillShapes,
@@ -300,12 +307,12 @@ function reducer (state, type, payload) {
     if (state.tool === "elipse" && type === "down") {
         return {
             startPoint: payload,
-            preview: createBuffer(width, height),
+            preview: createBuffer(state.width, state.height),
         }
     }
     if (state.tool === "elipse" &&  state.startPoint && type === "drag") {
         const preview = setElipse(
-            createBuffer(width, height),
+            createBuffer(state.width, state.height),
             state.startPoint,
             payload,
             state.fillShapes,
@@ -327,7 +334,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "bucket" && type === "down") {
-        const pixels = setFill(state.pixels, payload, state.pattern)
+        const pixels = setFill(state.pixels, payload, state.pattern, state.width, state.height)
         return {
             undoBuffer: state.pixels,
             pixels
@@ -356,7 +363,7 @@ function reducer (state, type, payload) {
 
     if (state.tool === "select" && type === "drag") {
         const preview = setRectangle(
-            createBuffer(width, height),
+            createBuffer(state.width, state.height),
             state.startPoint,
             payload)
         return {
@@ -381,7 +388,7 @@ function reducer (state, type, payload) {
         return {
             preview: null,
             startPoint: null,
-            selection: createSelection(state.pixels, state.startPoint, payload),
+            selection: createSelection(state.pixels, state.startPoint, payload, state.width, state.height),
             movingSelection: false,
         }
     }
@@ -408,19 +415,19 @@ class App extends Component {
             <div className="App">
                 <Canvas pixels={pixels}
                     dispatch={this.dispatch}
-                    width={width} height={height} scale={scale}/>
+                    scale={this.state.scale} />
                 <Flex>
                     <Tools selected={this.state.tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
                     <Brushes selected={this.state.brush}
                         dispatch={this.dispatch}
-                        scale={scale}
+                        scale={this.state.scale}
                         brushes={brushes}/>
                     <Patterns selected={this.state.pattern}
                         dispatch={this.dispatch}
                         patterns={patterns}
-                        scale={scale}/>
+                        scale={this.state.scale}/>
                     <div>
                         <h3>edit</h3>
                         <button onClick={() => this.dispatch("undo")}>

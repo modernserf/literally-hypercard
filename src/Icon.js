@@ -1,11 +1,11 @@
 import PropTypes from "prop-types"
 import React, { Component } from "react"
-import { colors } from "./config"
+import { setImageData, getWidth, getHeight } from "./buffer"
 
 export default class Icon extends Component {
     static propTypes = {
         scale: PropTypes.number.isRequired,
-        pixels: PropTypes.array.isRequired,
+        pixels: PropTypes.object.isRequired,
     }
     componentDidMount () {
         if (this.ctx) { this.renderCanvas() }
@@ -19,28 +19,12 @@ export default class Icon extends Component {
     }
     renderCanvas = () => {
         const { pixels, scale } = this.props
-        const height = pixels.length
-        const width = pixels[0].length
-        this.ctx.fillStyle = "white"
-        this.ctx.fillRect(0,0, width << scale, height << scale)
-
-        this.ctx.fillStyle = "black"
-        for (let y = 0; y < height; y++) {
-            for(let x = 0; x < width; x++) {
-                if (pixels[y][x] === colors.black) {
-                    this.ctx.fillRect(
-                        x << scale,
-                        y << scale,
-                        1 << scale,
-                        1 << scale)
-                }
-            }
-        }
+        setImageData(this.ctx, pixels, scale)
     }
     render () {
         const { pixels, scale } = this.props
-        const height = pixels.length
-        const width = pixels[0].length
+        const height = getHeight(pixels)
+        const width = getWidth(pixels)
 
         return (
             <canvas style={{display: "inline-block"}} ref={this.initRef}
