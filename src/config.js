@@ -1,10 +1,6 @@
 import { createPattern } from "./buffer"
 
-export const width = 256
-export const height = 256
-export const scale = 1
-
-export const tools = ["pencil", "brush", "eraser", "line", "rectangle", "elipse", "bucket", "select"]
+export const tools = ["pencil", "brush", "eraser", "line", "rectangle", "ellipse", "bucket", "select"]
 
 export const colors = {
     transparent: 0,

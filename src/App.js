@@ -76,7 +76,7 @@ function order (a, b) {
     return a < b ? [a,b] : [b,a]
 }
 
-function setElipse (buffer, p0, p1, withFill, patternID) {
+function setEllipse (buffer, p0, p1, withFill, patternID) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
     // radii
@@ -96,20 +96,17 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
 
     /* first half */
     for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        // draw border
+        if (withFill) {
+            for (let _x = xc - x; _x <= xc + x; _x++) {
+                drawPattern(buffer, pattern, _x, yc + y - 1)
+                drawPattern(buffer, pattern, _x, yc - y + 1)
+            }
+        }
+
         setPixel(buffer, xc + x, yc + y, 1)
         setPixel(buffer, xc - x, yc + y, 1)
         setPixel(buffer, xc + x, yc - y, 1)
         setPixel(buffer, xc - x, yc - y, 1)
-
-
-
-        if (withFill) {
-            for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, pattern, _x, yc + y)
-                drawPattern(buffer, pattern, _x, yc - y)
-            }
-        }
 
         if (sigma >= 0) {
             sigma += fa2 * (1 - y)
@@ -120,17 +117,17 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
 
     /* second half */
     for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        setPixel(buffer, xc + x, yc + y, 1)
-        setPixel(buffer, xc - x, yc + y, 1)
-        setPixel(buffer, xc + x, yc - y, 1)
-        setPixel(buffer, xc - x, yc - y, 1)
-
         if (withFill) {
             for (let _x = xc - x; _x <= xc + x; _x++) {
                 drawPattern(buffer, pattern, _x, yc + y)
                 drawPattern(buffer, pattern, _x, yc - y)
             }
         }
+
+        setPixel(buffer, xc + x, yc + y, 1)
+        setPixel(buffer, xc - x, yc + y, 1)
+        setPixel(buffer, xc + x, yc - y, 1)
+        setPixel(buffer, xc - x, yc - y, 1)
 
         if (sigma >= 0) {
             sigma += fb2 * (1 - x)
@@ -304,14 +301,14 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "elipse" && type === "down") {
+    if (state.tool === "ellipse" && type === "down") {
         return {
             startPoint: payload,
             preview: createBuffer(state.width, state.height),
         }
     }
-    if (state.tool === "elipse" &&  state.startPoint && type === "drag") {
-        const preview = setElipse(
+    if (state.tool === "ellipse" &&  state.startPoint && type === "drag") {
+        const preview = setEllipse(
             createBuffer(state.width, state.height),
             state.startPoint,
             payload,
@@ -322,7 +319,7 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (["pencil","brush","eraser","line","rectangle","elipse"].includes(state.tool) &&
+    if (["pencil","brush","eraser","line","rectangle","ellipse"].includes(state.tool) &&
         state.preview && type === "up") {
         return {
             startPoint: null,
