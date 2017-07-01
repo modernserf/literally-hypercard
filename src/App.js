@@ -1,180 +1,19 @@
-import bresenham from "bresenham"
 import React, { Component } from "react"
 import styled from "styled-components"
+import bresenham from "bresenham"
 import "./App.css"
-import floodFillScanline from "./floodFillScanline"
-import { colors, tools, brushes, patterns } from "./config"
-import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite, translate } from "./buffer"
+import { colors, tools } from "./config"
+import { brushes, patterns, cycleFill } from "./base-patterns"
+import { getPixel, setPixel, createBuffer, composite, translate } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
 import Tools from "./Tools"
 
-function drawPattern (buffer, pattern, x, y) {
-    const h = getHeight(pattern)
-    const w = getWidth(pattern)
-    const px = getPixel(pattern, x % w, y % h)
-    setPixel(buffer, x, y, px)
-}
-
-function drawPencil (buffer, point) {
-    setPixel(buffer, point.x, point.y, 1)
-    return buffer
-}
-
-// TODO: line width
-function drawLine (buffer, start, end) {
-    const points = bresenham(start.x, start.y, end.x, end.y)
-    for (let i = 0; i < points.length; i++) {
-        setPixel(buffer, points[i].x, points[i].y, 1)
-    }
-    return buffer
-}
-
-function drawBrush (buffer, point, brushID, patternID) {
-    const brush = brushes[brushID]
-    const w = getWidth(brush)
-    const h = getHeight(brush)
-    const offsetX = w >> 1
-    const offsetY = h >> 1
-    const pattern = patterns[patternID]
-    for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-            if (getPixel(brush, x, y)) {
-                drawPattern(
-                    buffer,
-                    pattern,
-                    point.x + x - offsetX,
-                    point.y + y - offsetY)
-            }
-        }
-    }
-    return buffer
-}
-
-function erase (buffer, point, brushID) {
-    const brush = brushes[brushID]
-    const w = getWidth(brush)
-    const h = getHeight(brush)
-    const offsetX = w >> 1
-    const offsetY = h >> 1
-    for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-            if (getPixel(brush, x, y)) {
-                setPixel(
-                    buffer,
-                    point.x + x - offsetX,
-                    point.y + y - offsetY,
-                    colors.erase)
-            }
-        }
-    }
-    return buffer
-}
-
-function setRectangle (buffer, p0, p1, withFill = false, patternID = 0) {
-    const [x0, x1] = order(p0.x, p1.x)
-    const [y0, y1] = order(p0.y, p1.y)
-    const pattern = patterns[patternID]
-
-    for (let y = y0; y <= y1; y++) {
-        for (let x = x0; x <= x1; x++) {
-            if (withFill) {
-                drawPattern(buffer, pattern, x, y)
-            }
-            // draw sides
-            if (y === y0 || y === y1 || x === x0 || x === x1) {
-                setPixel(buffer, x, y, 1)
-            }
-        }
-    }
-
-    return buffer
-}
+import { drawBrush, drawPattern, drawPencil, setRectangle, erase, drawLine, setEllipse, setFill } from "./draw"
 
 function order (a, b) {
     return a < b ? [a,b] : [b,a]
-}
-
-function setEllipse (buffer, p0, p1, withFill, patternID) {
-    const [x0, x1] = order(p0.x, p1.x)
-    const [y0, y1] = order(p0.y, p1.y)
-    // radii
-    const width = (x1 - x0) >> 1
-    const height = (y1 - y0) >> 1
-    if (!width || !height) { return buffer }
-
-    const xc = x0 + width
-    const yc = y0 + height
-
-    const a2 = width * width
-    const b2 = height * height
-    const fa2 = 4 * a2
-    const fb2 = 4 * b2
-
-    const pattern = patterns[patternID]
-
-    /* first half */
-    for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        if (withFill) {
-            for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, pattern, _x, yc + y - 1)
-                drawPattern(buffer, pattern, _x, yc - y + 1)
-            }
-        }
-
-        setPixel(buffer, xc + x, yc + y, 1)
-        setPixel(buffer, xc - x, yc + y, 1)
-        setPixel(buffer, xc + x, yc - y, 1)
-        setPixel(buffer, xc - x, yc - y, 1)
-
-        if (sigma >= 0) {
-            sigma += fa2 * (1 - y)
-            y--
-        }
-        sigma += b2 * ((4 * x) + 6)
-    }
-
-    /* second half */
-    for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        if (withFill) {
-            for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, pattern, _x, yc + y)
-                drawPattern(buffer, pattern, _x, yc - y)
-            }
-        }
-
-        setPixel(buffer, xc + x, yc + y, 1)
-        setPixel(buffer, xc - x, yc + y, 1)
-        setPixel(buffer, xc + x, yc - y, 1)
-        setPixel(buffer, xc - x, yc - y, 1)
-
-        if (sigma >= 0) {
-            sigma += fb2 * (1 - x)
-            x--
-        }
-        sigma += a2 * ((4 * y) + 6)
-    }
-
-    return buffer
-}
-
-function setFill (buffer, point, patternID) {
-    const width = getWidth(buffer)
-    const height = getHeight(buffer)
-    const dest = createBuffer(width, height)
-    const fillTest = composite(buffer, createBuffer(width, height))
-    const pattern = patterns[patternID]
-    const test = (x, y) => {
-        if (x < 0 || y < 0 || x >= width || y >= height) { return false }
-        return !getPixel(fillTest, x, y)
-    }
-    const paint = (x, y) => {
-        setPixel(fillTest, x, y, 1)
-        drawPattern(dest, pattern, x, y)
-    }
-    floodFillScanline(point.x, point.y, width, height, false, test, paint)
-    return composite(buffer, dest)
 }
 
 function createSelection (buffer, p0, p1) {
@@ -189,6 +28,24 @@ function createSelection (buffer, p0, p1) {
         }
     }
     return out
+}
+
+function createMarquee (selection, p0, p1) {
+    const buffer = createBuffer(selection.width, selection.height)
+    const [x0, x1] = order(p0.x, p1.x)
+    const [y0, y1] = order(p0.y, p1.y)
+
+    for (let x = x0; x <= x1; x++) {
+        drawPattern(buffer, cycleFill.topLeft, x, y0)
+        drawPattern(buffer, cycleFill.bottomRight, x, y1)
+    }
+
+    for (let y = y0; y <= y1; y++) {
+        drawPattern(buffer, cycleFill.topLeft, x0, y)
+        drawPattern(buffer, cycleFill.bottomRight, x1, y)
+    }
+
+    return buffer
 }
 
 function blankSelection (buffer) {
@@ -225,6 +82,9 @@ const initState = {
 }
 
 function reducer (state, type, payload) {
+    const brush = brushes[state.brush]
+    const pattern = patterns[state.pattern]
+
     // set tools
     if (type === "selectTool") {
         return {
@@ -276,8 +136,8 @@ function reducer (state, type, payload) {
         return {
             ...commitSelection(state),
             selection: state.clipboard,
-            selectionMarquee: setRectangle(
-                createBuffer(state.width, state.height),
+            selectionMarquee: createMarquee(
+                state.clipboard,
                 { x: 0, y: 0 },
                 { x: state.width, y: state.height })
         }
@@ -286,8 +146,8 @@ function reducer (state, type, payload) {
     if (type === "paste" && state.clipboard) {
         return {
             selection: state.clipboard,
-            selectionMarquee: setRectangle(
-                createBuffer(state.width, state.height),
+            selectionMarquee: createMarquee(
+                state.clipboard,
                 { x: 0, y: 0 },
                 { x: state.width, y: state.height })
         }
@@ -311,8 +171,8 @@ function reducer (state, type, payload) {
     if (type === "select all") {
         const start = { x: 0, y: 0 }
         const end = {x: state.width - 1, y: state.height - 1 }
-        const selectionMarquee = setRectangle(createBuffer(state.width, state.height), start, end)
         const selection = createSelection(state.pixels, start, end)
+        const selectionMarquee = createMarquee(selection, start, end)
         return {
             startPoint: null,
             preview: blankSelection(selection),
@@ -353,7 +213,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "brush" && type === "down") {
-        const preview = drawBrush(createBuffer(state.width, state.height), payload, state.brush, state.pattern)
+        const preview = drawBrush(createBuffer(state.width, state.height), payload, brush, pattern)
         return {
             lastPoint: payload,
             preview,
@@ -362,7 +222,7 @@ function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const preview = points.reduce((acc, point) =>
-            drawBrush(acc, point, state.brush,  state.pattern),
+            drawBrush(acc, point, brush, pattern),
         state.preview)
         return {
             lastPoint: payload,
@@ -371,7 +231,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "eraser" && type === "down") {
-        const preview = erase(createBuffer(state.width, state.height), payload, state.brush)
+        const preview = erase(createBuffer(state.width, state.height), payload, brush)
         return {
             lastPoint: payload,
             preview
@@ -379,9 +239,7 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "eraser" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const preview = points.reduce((acc, point) =>
-            erase(acc, point, state.brush),
-        state.preview)
+        const preview = points.reduce((acc, point) => erase(acc, point, brush), state.preview)
         return {
             lastPoint: payload,
             preview,
@@ -405,8 +263,7 @@ function reducer (state, type, payload) {
             createBuffer(state.width, state.height),
             state.startPoint,
             payload,
-            state.fillShapes,
-            state.pattern)
+            state.fillShapes && pattern)
         return {
             preview,
         }
@@ -417,8 +274,7 @@ function reducer (state, type, payload) {
             createBuffer(state.width, state.height),
             state.startPoint,
             payload,
-            state.fillShapes,
-            state.pattern)
+            state.fillShapes && pattern)
         return {
             preview,
         }
@@ -436,7 +292,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "bucket" && type === "down") {
-        const pixels = setFill(state.pixels, payload, state.pattern, state.width, state.height)
+        const pixels = setFill(state.pixels, payload, pattern)
         return {
             undoBuffer: state.pixels,
             pixels
@@ -458,7 +314,7 @@ function reducer (state, type, payload) {
 
     if (state.tool === "select" && type === "drag") {
         return {
-            selectionMarquee: setRectangle(
+            selectionMarquee: createMarquee(
                 createBuffer(state.width, state.height),
                 state.startPoint,
                 payload)

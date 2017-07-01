@@ -11,6 +11,7 @@ export default class Canvas extends Component {
     state = {
         mouseDown: false,
     }
+    frame = 0
     componentDidMount () {
         if (this.ctx) { this.renderCanvas() }
     }
@@ -22,8 +23,9 @@ export default class Canvas extends Component {
         this.ctx = e.getContext("2d")
     }
     renderCanvas = () => {
+        this.frame++
         const { scale } = this.props
-        setImageData(this.ctx, this.props.pixels, scale)
+        setImageData(this.ctx, this.props.pixels, scale, this.frame)
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {

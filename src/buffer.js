@@ -1,10 +1,4 @@
-const colors = {
-    transparent: 0,
-    black: 1,
-    white: 2,
-    selection: 3,
-    erase: 4,
-}
+import { colors } from "./config"
 
 // buffer getter/setters
 export function getPixel (buffer, x, y) {
@@ -71,7 +65,9 @@ export function translate (buffer, p0, p1) {
     return buffer
 }
 
-export function setImageData (ctx, buffer, scale) {
+const cycleColors = [0,0,1,1]
+
+export function setImageData (ctx, buffer, scale, frame = 0) {
     const w = getWidth(buffer)
     const h = getHeight(buffer)
 
@@ -80,26 +76,18 @@ export function setImageData (ctx, buffer, scale) {
     const imageData = ctx.createImageData(w << scale, h << scale)
     const ln = imageData.data.length
     for (let i = 0; i < ln; i += 4) {
-        const y = (i >> (2 + scale)) / (w << scale)
-        const x = (i >> (2 + scale)) % (w << scale - 1)
+        const y = (i >> 2 >> scale) / (w << scale)
+        const x = (i >> 2 >> scale) % (w << scale - 1)
         const px = getPixel(buffer, x, y | 0)
-        let r = 0, g = 0, b = 0, a = 0
-        if (px === colors.black) {
-            r = 0
-            g = 0
-            b = 0
-            a = 255
-        } else if (px === colors.white) {
-            r = 255
-            g = 255
-            b = 255
-            a = 255
-        }
 
-        imageData.data[i] = r
-        imageData.data[i + 1] = g
-        imageData.data[i + 2] = b
-        imageData.data[i + 3] = a
+        const cycleFill = (px & 8) && cycleColors[(px - 8 + (frame >> 1)) % 4]
+
+        if (px === colors.black || cycleFill) {
+            imageData.data[i] = 0
+            imageData.data[i + 1] = 0
+            imageData.data[i + 2] = 0
+            imageData.data[i + 3] = 255
+        }
     }
 
     ctx.putImageData(imageData, 0, 0)
