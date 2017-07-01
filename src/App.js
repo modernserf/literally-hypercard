@@ -205,7 +205,7 @@ function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             pencilValue: value,
-            preview: drawPencil(createBuffer(state.width, state.height), payload, value)
+            preview: drawPencil(createBuffer(state.width, state.height), payload, null, value)
         }
     }
     if (state.tool === "pencil" && type === "drag") {
