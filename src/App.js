@@ -1,8 +1,7 @@
 import React, { Component } from "react"
 import styled from "styled-components"
-import bresenham from "bresenham"
 import "./App.css"
-import { colors, tools } from "./config"
+import { colors, tools, editActions } from "./config"
 import { brushes, patterns, cycleFill } from "./base-patterns"
 import { getPixel, setPixel, createBuffer, composite, translate } from "./buffer"
 import Patterns from "./Patterns"
@@ -197,52 +196,41 @@ function reducer (state, type, payload) {
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        const preview = drawPencil(createBuffer(state.width, state.height), payload)
         return {
             lastPoint: payload,
-            preview,
+            preview: drawPencil(createBuffer(state.width, state.height), payload)
         }
     }
     if (state.tool === "pencil" && type === "drag") {
-        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const preview = points.reduce((acc, point) => drawPencil(acc, point), state.preview)
         return {
             lastPoint: payload,
-            preview,
+            preview: drawPencil(state.preview, state.lastPoint, payload),
         }
     }
 
     if (state.tool === "brush" && type === "down") {
-        const preview = drawBrush(createBuffer(state.width, state.height), payload, brush, pattern)
         return {
             lastPoint: payload,
-            preview,
+            preview: drawBrush(createBuffer(state.width, state.height), payload, null, brush, pattern)
         }
     }
     if (state.tool === "brush" && type === "drag") {
-        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const preview = points.reduce((acc, point) =>
-            drawBrush(acc, point, brush, pattern),
-        state.preview)
         return {
             lastPoint: payload,
-            preview,
+            preview: drawBrush(state.preview, state.lastPoint, payload, brush, pattern)
         }
     }
 
     if (state.tool === "eraser" && type === "down") {
-        const preview = erase(createBuffer(state.width, state.height), payload, brush)
         return {
             lastPoint: payload,
-            preview
+            preview: erase(createBuffer(state.width, state.height), payload, null, brush)
         }
     }
     if (state.tool === "eraser" && type === "drag") {
-        const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const preview = points.reduce((acc, point) => erase(acc, point, brush), state.preview)
         return {
             lastPoint: payload,
-            preview,
+            preview: erase(state.preview, state.lastPoint, payload, brush)
         }
     }
 
@@ -357,7 +345,6 @@ const Flex = styled.div`
     }
 `
 
-const editActions = ["undo", "cut", "copy", "paste", "clear", "select all"]
 
 function EditActions ({ dispatch }) {
     return (

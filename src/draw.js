@@ -11,10 +11,15 @@ export function drawPattern (buffer, pattern, x, y) {
     setPixel(buffer, x, y, px)
 }
 
-export function drawPencil (buffer, point) {
-    setPixel(buffer, point.x, point.y, 1)
+export function drawPencil (buffer, start, end) {
+    const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
+
+    for (let i = 0; i < points.length; i++) {
+        setPixel(buffer, points[i].x, points[i].y, 1)
+    }
     return buffer
 }
+
 
 // TODO: line width
 export function drawLine (buffer, start, end) {
@@ -25,38 +30,48 @@ export function drawLine (buffer, start, end) {
     return buffer
 }
 
-export function drawBrush (buffer, point, brush, pattern) {
+export function drawBrush (buffer, start, end, brush, pattern) {
+    const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
     const w = getWidth(brush)
     const h = getHeight(brush)
     const offsetX = w >> 1
     const offsetY = h >> 1
-    for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-            if (getPixel(brush, x, y)) {
-                drawPattern(
-                    buffer,
-                    pattern,
-                    point.x + x - offsetX,
-                    point.y + y - offsetY)
+
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i]
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (getPixel(brush, x, y)) {
+                    drawPattern(
+                        buffer,
+                        pattern,
+                        point.x + x - offsetX,
+                        point.y + y - offsetY)
+                }
             }
         }
     }
     return buffer
 }
 
-export function erase (buffer, point, brush) {
+export function erase (buffer, start, end, brush) {
+    const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
     const w = getWidth(brush)
     const h = getHeight(brush)
     const offsetX = w >> 1
     const offsetY = h >> 1
-    for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-            if (getPixel(brush, x, y)) {
-                setPixel(
-                    buffer,
-                    point.x + x - offsetX,
-                    point.y + y - offsetY,
-                    colors.erase)
+
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i]
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (getPixel(brush, x, y)) {
+                    setPixel(
+                        buffer,
+                        point.x + x - offsetX,
+                        point.y + y - offsetY,
+                        colors.erase)
+                }
             }
         }
     }
