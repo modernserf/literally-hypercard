@@ -63,15 +63,18 @@ function inSelection (selection, point) {
     return !!getPixel(selection, point.x, point.y)
 }
 
+const size = 128
+
+
 const initState = {
-    width: 256,
-    height: 256,
+    width: size,
+    height: size,
     scale: 1,
     tool: "brush",
     brush: 3,
     pattern: 1,
-    undoBuffer: createBuffer(256, 256),
-    pixels: createBuffer(256, 256),
+    undoBuffer: createBuffer(size, size),
+    pixels: createBuffer(size, size),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,

@@ -10,8 +10,12 @@ export default class Canvas extends Component {
     }
     state = {
         mouseDown: false,
+        lastEvent: null,
     }
     frame = 0
+    componentWillMount () {
+        this.hasTouchEvents = "ontouchstart" in document.documentElement
+    }
     componentDidMount () {
         if (this.ctx) { this.renderCanvas() }
     }
@@ -29,15 +33,24 @@ export default class Canvas extends Component {
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {
+        e.preventDefault()
+        const event = e.nativeEvent.targetTouches
+            ? e.nativeEvent.targetTouches[0] || e.nativeEvent.changedTouches[0]
+            : e
+
         const { scale } = this.props
         const { top, left } = this._ref.getBoundingClientRect()
-        const x = e.clientX - left
-        const y = e.clientY - top
+        const x = event.clientX - left
+        const y = event.clientY - top
         return { x: x >> scale, y: y >> scale }
     }
     onMouseDown = (e) => {
         this.setState({ mouseDown: true })
         this.props.dispatch("down", this.getPoint(e))
+    }
+    onDrag = (e) => {
+        this.setState({ lastEvent: e.nativeEvent })
+        this.props.dispatch("drag", this.getPoint(e))
     }
     onMouseMove = (e) => {
         const msg = this.state.mouseDown ? "drag" : "move"
@@ -51,14 +64,24 @@ export default class Canvas extends Component {
         const { pixels, scale } = this.props
         const width = getWidth(pixels)
         const height = getHeight(pixels)
+
+        const handlers = this.hasTouchEvents ? {
+            onTouchStart: this.onMouseDown,
+            onTouchMove: this.onDrag,
+            onTouchEnd: this.onMouseUp,
+        } : {
+            onMouseDown: this.onMouseDown,
+            onMouseUp: this.onMouseUp,
+            onMouseMove: this.onMouseMove,
+            onMouseLeave: this.onMouseUp,
+        }
+
+
         return (
             <canvas ref={this.initRef}
                 className="main-canvas"
                 width={width << scale} height={height << scale}
-                onMouseDown={this.onMouseDown}
-                onMouseUp={this.onMouseUp}
-                onMouseMove={this.onMouseMove}
-                onMouseLeave={this.onMouseUp}
+                {...handlers}
             />
         )
     }
