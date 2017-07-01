@@ -4,7 +4,7 @@ import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
 import { colors, tools, brushes, patterns } from "./config"
-import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite } from "./buffer"
+import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite, translate } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -46,6 +46,26 @@ function drawBrush (buffer, point, brushID, patternID) {
                     pattern,
                     point.x + x - offsetX,
                     point.y + y - offsetY)
+            }
+        }
+    }
+    return buffer
+}
+
+function erase (buffer, point, brushID) {
+    const brush = brushes[brushID]
+    const w = getWidth(brush)
+    const h = getHeight(brush)
+    const offsetX = w >> 1
+    const offsetY = h >> 1
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            if (getPixel(brush, x, y)) {
+                setPixel(
+                    buffer,
+                    point.x + x - offsetX,
+                    point.y + y - offsetY,
+                    colors.erase)
             }
         }
     }
@@ -157,30 +177,34 @@ function setFill (buffer, point, patternID) {
     return composite(buffer, dest)
 }
 
-
-
-function createSelection (buffer, p0, p1, width, height) {
+function createSelection (buffer, p0, p1) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
-    const out = []
-    for (let y = 0; y < height; y++) {
-        const line = []
-        for (let x = 0; x < width; x++) {
+    const out = createBuffer(buffer.width, buffer.height)
+    for (let y = 0; y < buffer.height; y++) {
+        for (let x = 0; x < buffer.width; x++) {
             if ((x0 <= x && x <= x1) && (y0 <= y && y <= y1)) {
-                line.push(colors.selection)
-            } else {
-                line.push(colors.transparent)
+                setPixel(out, x, y, getPixel(buffer, x, y))
             }
         }
-        out.push(line)
+    }
+    return out
+}
+
+function blankSelection (buffer) {
+    const out = createBuffer(buffer.width, buffer.height)
+    for (let y = 0; y < buffer.height; y++) {
+        for (let x = 0; x < buffer.width; x++) {
+            if (getPixel(buffer, x, y)) {
+                setPixel(out, x, y, colors.erase)
+            }
+        }
     }
     return out
 }
 
 function inSelection (selection, point) {
-    return !!selection &&
-        selection[point.y] &&
-        selection[point.y][point.x] === colors.selection
+    return !!getPixel(selection, point.x, point.y)
 }
 
 const initState = {
@@ -196,18 +220,30 @@ const initState = {
     lastPoint: null,
     fillShapes: true,
     selection: null,
+    selectionMarquee: null,
 }
 
 function reducer (state, type, payload) {
     // set tools
     if (type === "selectTool") {
-        return { tool: payload }
+        return {
+            ...commitSelection(state),
+            tool: payload,
+        }
     }
     if (type === "selectBrush") {
         return { brush: payload }
     }
     if (type === "selectPattern") {
         return { pattern: payload }
+    }
+
+    if (type === "undo" && state.selection) {
+        return {
+            selection: null,
+            selectionMarquee: null,
+            preview: null,
+        }
     }
 
     if (type === "undo") {
@@ -257,9 +293,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "eraser" && type === "down") {
-        const preview = drawBrush(
-            createBuffer(state.width, state.height),
-            payload, state.brush, 0)
+        const preview = erase(createBuffer(state.width, state.height), payload, state.brush)
         return {
             lastPoint: payload,
             preview
@@ -268,7 +302,7 @@ function reducer (state, type, payload) {
     if (state.tool === "eraser" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const preview = points.reduce((acc, point) =>
-            drawBrush(acc, point, state.brush, 0),
+            erase(acc, point, state.brush),
         state.preview)
         return {
             lastPoint: payload,
@@ -277,8 +311,7 @@ function reducer (state, type, payload) {
     }
 
     // shapelike tools -- stateless preview
-    if ((state.tool === "line" || state.tool === "rectangle")
-        && type === "down") {
+    if (["line","rectangle","ellipse"].includes(state.tool) && type === "down") {
         return {
             startPoint: payload,
         }
@@ -301,12 +334,6 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "ellipse" && type === "down") {
-        return {
-            startPoint: payload,
-            preview: createBuffer(state.width, state.height),
-        }
-    }
     if (state.tool === "ellipse" &&  state.startPoint && type === "drag") {
         const preview = setEllipse(
             createBuffer(state.width, state.height),
@@ -338,56 +365,63 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "select" && type === "down" && inSelection(state.selection, payload)) {
+    if (state.tool === "select" && type === "down" && state.selection &&
+        !inSelection(state.selection, payload)) {
         return {
+            ...commitSelection(state),
             startPoint: payload,
-            movingSelection: true
         }
     }
+
 
     if (state.tool === "select" && type === "down") {
         return {
-            startPoint: payload
+            startPoint: payload,
         }
     }
 
-    // if (state.tool === "select" && type === "drag" && state.movingSelection) {
-    //     return {
-    //         preview: blankSelection(state.selection),
-    //         translateSelection: translate(state.selection, state.startPoint, payload),
-    //     }
-    // }
+    if (state.tool === "select" && type === "drag" && state.selection) {
+        return {
+            selection: translate(state.selection, state.startPoint, payload),
+            selectionMarquee: translate(state.selectionMarquee, state.startPoint, payload),
+        }
+    }
 
     if (state.tool === "select" && type === "drag") {
-        const preview = setRectangle(
-            createBuffer(state.width, state.height),
-            state.startPoint,
-            payload)
         return {
-            preview,
+            selectionMarquee: setRectangle(
+                createBuffer(state.width, state.height),
+                state.startPoint,
+                payload)
         }
     }
 
-    // if (state.tool === "select" && type === "up" && state.movingSelection) {
-    //     const copy = copySelection(state.pixels, state.selection)
-    //
-    //     return {
-    //         startPoint: null,
-    //         undoBuffer: state.pixels,
-    //         preview: null,
-    //         pixels: composite(
-    //             deleteSelection(state.pixels, state.selection),
-    //             copySelection(state.pixels, state.selection))
-    //     }
-    // }
+    if (state.tool === "select" && state.selection && type === "up") {
+        return {
+            startPoint: null,
+            selection: composite(createBuffer(state.width, state.height), state.selection),
+            selectionMarquee: composite(createBuffer(state.width, state.height), state.selectionMarquee),
+        }
+    }
 
     if (state.tool === "select" && state.startPoint && type === "up") {
+        const selection = createSelection(state.pixels, state.startPoint, payload)
         return {
-            preview: null,
             startPoint: null,
-            selection: createSelection(state.pixels, state.startPoint, payload, state.width, state.height),
-            movingSelection: false,
+            selection: selection,
+            preview: blankSelection(selection),
         }
+    }
+}
+
+function commitSelection (state) {
+    if (!state.selection) { return {} }
+    return {
+        undoBuffer: state.pixels,
+        pixels: composite(composite(state.pixels, state.preview), state.selection),
+        selection: null,
+        selectionMarquee: null,
+        preview: null,
     }
 }
 
@@ -404,9 +438,12 @@ class App extends Component {
         this.setState((state) => reducer(state, type, payload) || {})
     }
     render() {
-        const pixels = composite(
-            composite(this.state.pixels, this.state.preview),
-            this.state.selection)
+        const pixels = [
+            this.state.pixels,
+            this.state.preview,
+            this.state.selection,
+            this.state.selectionMarquee
+        ].reduce(composite)
 
         return (
             <div className="App">

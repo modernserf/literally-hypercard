@@ -48,9 +48,11 @@ export function composite (bottom, top) {
         height: bottom.height,
         data: bottom.data.slice(0),
     }
+    const offsetX = top.offsetX || 0
+    const offsetY = top.offsetY || 0
     for (let y = 0; y < bottom.height; y++) {
         for (let x = 0; x < bottom.width; x++) {
-            const t = getPixel(top, x, y)
+            const t = getPixel(top, x + offsetX, y + offsetY)
             if (t === colors.transparent) {
                 // do nothing
             } else if (t === colors.erase) {
@@ -61,6 +63,12 @@ export function composite (bottom, top) {
         }
     }
     return out
+}
+
+export function translate (buffer, p0, p1) {
+    buffer.offsetX = p0.x - p1.x
+    buffer.offsetY = p0.y - p1.y
+    return buffer
 }
 
 export function setImageData (ctx, buffer, scale) {
