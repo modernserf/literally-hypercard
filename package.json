@@ -1,5 +1,6 @@
 {
   "name": "literally-hypercard",
+  "homepage" : "http://justinfalcone.com/literally-hypercard",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -21,6 +22,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
+    "deploy": ". deploy.sh",
     "eject": "react-scripts eject"
   }
 }
