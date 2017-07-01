@@ -275,7 +275,6 @@ function reducer (state, type, payload) {
     if (type === "paste" && state.selection && state.clipboard) {
         return {
             ...commitSelection(state),
-            tool: "select",
             selection: state.clipboard,
             selectionMarquee: setRectangle(
                 createBuffer(state.width, state.height),
@@ -286,12 +285,48 @@ function reducer (state, type, payload) {
 
     if (type === "paste" && state.clipboard) {
         return {
-            tool: "select",
             selection: state.clipboard,
             selectionMarquee: setRectangle(
                 createBuffer(state.width, state.height),
                 { x: 0, y: 0 },
                 { x: state.width, y: state.height })
+        }
+    }
+
+    if (type === "clear" && state.selection) {
+        return {
+            undoBuffer: state.pixels,
+            pixels: composite(state.pixels, blankSelection(state.selection)),
+            selection: null,
+        }
+    }
+
+    if (type === "clear") {
+        return {
+            undoBuffer: state.pixels,
+            pixels: createBuffer(state.width, state.height),
+        }
+    }
+
+    if (type === "select all") {
+        const start = { x: 0, y: 0 }
+        const end = {x: state.width - 1, y: state.height - 1 }
+        const selectionMarquee = setRectangle(createBuffer(state.width, state.height), start, end)
+        const selection = createSelection(state.pixels, start, end)
+        return {
+            startPoint: null,
+            preview: blankSelection(selection),
+            selection,
+            selectionMarquee
+        }
+    }
+
+    // note: puts you in select mode
+    if (type === "down" && state.selection && !inSelection(state.selection, payload)) {
+        return {
+            ...commitSelection(state),
+            tool: "select",
+            startPoint: payload,
         }
     }
 
@@ -408,15 +443,6 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "select" && type === "down" && state.selection &&
-        !inSelection(state.selection, payload)) {
-        return {
-            ...commitSelection(state),
-            startPoint: payload,
-        }
-    }
-
-
     if (state.tool === "select" && type === "down") {
         return {
             startPoint: payload,
@@ -475,7 +501,7 @@ const Flex = styled.div`
     }
 `
 
-const editActions = ["undo", "cut", "copy", "paste"]
+const editActions = ["undo", "cut", "copy", "paste", "clear", "select all"]
 
 function EditActions ({ dispatch }) {
     return (
