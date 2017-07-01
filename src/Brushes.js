@@ -17,11 +17,11 @@ export default function Brushes ({ selected, dispatch, scale, brushes }) {
     return (
         <div>
             <h3>brushes</h3>
-            <ul>{brushes.map(({ pattern },i) => (
+            <ul>{brushes.map((brush,i) => (
                 <li key={i}>
                     <BrushButton selected={selected === i}
                         onClick={() => dispatch("selectBrush", i)}>
-                        <Icon pixels={pattern} scale={scale} />
+                        <Icon pixels={brush} scale={scale} />
                     </BrushButton>
                 </li>
             ))}</ul>

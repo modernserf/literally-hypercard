@@ -4,39 +4,48 @@ import styled from "styled-components"
 import "./App.css"
 import floodFillScanline from "./floodFillScanline"
 import { colors, width, height, scale, tools, brushes, patterns } from "./config"
+import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
 import Tools from "./Tools"
 
-function drawPoint (buffer, x, y, value) {
-    if (x < 0 || y < 0 || x >= width || y >= height) { return }
-    buffer[y][x] = value
+function drawPattern (buffer, pattern, x, y) {
+    const h = getHeight(pattern)
+    const w = getWidth(pattern)
+    const px = getPixel(pattern, x % w, y % h)
+    setPixel(buffer, x, y, px)
 }
 
-function drawPattern (buffer, x, y, patternID) {
-    const pattern = patterns[patternID]
-    if (x < 0 || y < 0 || x >= width || y >= height) { return }
-    const h = pattern.length
-    const w = pattern[0].length
-    buffer[y][x] = pattern[y % h][x % w]
-}
-
-function setPencil (buffer, point) {
-    drawPoint(buffer, point.x, point.y, 1)
+function drawPencil (buffer, point) {
+    setPixel(buffer, point.x, point.y, 1)
     return buffer
 }
 
-function setBrush (buffer, point, brush, patternID) {
-    const { x: offsetX, y: offsetY, pattern } = brushes[brush]
-    for (let y = 0; y < pattern.length; y++) {
-        for (let x = 0; x < pattern[y].length; x++) {
-            if (pattern[y][x]) {
+// TODO: line width
+function drawLine (buffer, start, end) {
+    const points = bresenham(start.x, start.y, end.x, end.y)
+    for (let i = 0; i < points.length; i++) {
+        setPixel(buffer, points[i].x, points[i].y, 1)
+    }
+    return buffer
+}
+
+function drawBrush (buffer, point, brushID, patternID) {
+    const brush = brushes[brushID]
+    const w = getWidth(brush)
+    const h = getHeight(brush)
+    const offsetX = w >> 1
+    const offsetY = h >> 1
+    const pattern = patterns[patternID]
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            if (getPixel(brush, x, y)) {
                 drawPattern(
                     buffer,
-                    point.x + offsetX + x,
-                    point.y + offsetY + y,
-                    patternID)
+                    pattern,
+                    point.x + x - offsetX,
+                    point.y + y - offsetY)
             }
         }
     }
@@ -46,15 +55,16 @@ function setBrush (buffer, point, brush, patternID) {
 function setRectangle (buffer, p0, p1, withFill = false, patternID = 0) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
+    const pattern = patterns[patternID]
 
     for (let y = y0; y <= y1; y++) {
         for (let x = x0; x <= x1; x++) {
             if (withFill) {
-                drawPattern(buffer, x, y, patternID)
+                drawPattern(buffer, pattern, x, y)
             }
             // draw sides
             if (y === y0 || y === y1 || x === x0 || x === x1) {
-                drawPoint(buffer, x, y, 1)
+                setPixel(buffer, x, y, 1)
             }
         }
     }
@@ -82,18 +92,22 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
     const fa2 = 4 * a2
     const fb2 = 4 * b2
 
+    const pattern = patterns[patternID]
+
     /* first half */
     for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
         // draw border
-        drawPoint(buffer, xc + x, yc + y, 1)
-        drawPoint(buffer, xc - x, yc + y, 1)
-        drawPoint(buffer, xc + x, yc - y, 1)
-        drawPoint(buffer, xc - x, yc - y, 1)
+        setPixel(buffer, xc + x, yc + y, 1)
+        setPixel(buffer, xc - x, yc + y, 1)
+        setPixel(buffer, xc + x, yc - y, 1)
+        setPixel(buffer, xc - x, yc - y, 1)
+
+
 
         if (withFill) {
             for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, _x, yc + y, patternID)
-                drawPattern(buffer, _x, yc - y, patternID)
+                drawPattern(buffer, pattern, _x, yc + y)
+                drawPattern(buffer, pattern, _x, yc - y)
             }
         }
 
@@ -106,15 +120,15 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
 
     /* second half */
     for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        drawPoint(buffer, xc + x, yc + y, 1)
-        drawPoint(buffer, xc - x, yc + y, 1)
-        drawPoint(buffer, xc + x, yc - y, 1)
-        drawPoint(buffer, xc - x, yc - y, 1)
+        setPixel(buffer, xc + x, yc + y, 1)
+        setPixel(buffer, xc - x, yc + y, 1)
+        setPixel(buffer, xc + x, yc - y, 1)
+        setPixel(buffer, xc - x, yc - y, 1)
 
         if (withFill) {
             for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, _x, yc + y, patternID)
-                drawPattern(buffer, _x, yc - y, patternID)
+                drawPattern(buffer, pattern, _x, yc + y)
+                drawPattern(buffer, pattern, _x, yc - y)
             }
         }
 
@@ -131,45 +145,20 @@ function setElipse (buffer, p0, p1, withFill, patternID) {
 function setFill (buffer, point, patternID) {
     const dest = createBuffer(width, height)
     const fillTest = composite(buffer, createBuffer(width, height))
+    const pattern = patterns[patternID]
     const test = (x, y) => {
         if (x < 0 || y < 0 || x >= width || y >= height) { return false }
-        return !fillTest[y][x]
+        return !getPixel(fillTest, x, y)
     }
     const paint = (x, y) => {
-        drawPoint(fillTest, x, y, 1)
-        drawPattern(dest, x, y, patternID)
+        setPixel(fillTest, x, y, 1)
+        drawPattern(dest, pattern, x, y)
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
     return composite(buffer, dest)
 }
 
-function createBuffer (width, height) {
-    return Array(height).fill(0).map(() =>
-        Array(width).fill(colors.transparent))
-}
 
-function composite (bottom, top) {
-    if (!top) { return bottom }
-    const out = []
-    for (let y = 0; y < height; y++) {
-        const line = []
-        for (let x = 0; x < width; x++) {
-            if (top[y][x] === colors.transparent) {
-                line.push(bottom[y][x])
-            } else if (top[y][x] === colors.selection) {
-                if (bottom[y][x] === colors.black) {
-                    line.push(colors.white)
-                } else {
-                    line.push(colors.black)
-                }
-            } else {
-                line.push(top[y][x])
-            }
-        }
-        out.push(line)
-    }
-    return out
-}
 
 function createSelection (buffer, p0, p1) {
     const [x0, x1] = order(p0.x, p1.x)
@@ -196,9 +185,9 @@ function inSelection (selection, point) {
 }
 
 const initState = {
-    tool: "elipse",
+    tool: "brush",
     brush: 3,
-    pattern: 2,
+    pattern: 1,
     undoBuffer: createBuffer(width, height),
     pixels: createBuffer(width, height),
     startPoint: null,
@@ -232,7 +221,7 @@ function reducer (state, type, payload) {
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        const preview = setPencil(createBuffer(width, height), payload)
+        const preview = drawPencil(createBuffer(width, height), payload)
         return {
             lastPoint: payload,
             preview,
@@ -240,7 +229,7 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "pencil" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
-        const preview = points.reduce((acc, point) => setPencil(acc, point), state.preview)
+        const preview = points.reduce((acc, point) => drawPencil(acc, point), state.preview)
         return {
             lastPoint: payload,
             preview,
@@ -248,7 +237,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "brush" && type === "down") {
-        const preview = setBrush(createBuffer(width, height), payload, state.brush, state.pattern)
+        const preview = drawBrush(createBuffer(width, height), payload, state.brush, state.pattern)
         return {
             lastPoint: payload,
             preview,
@@ -257,7 +246,7 @@ function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const preview = points.reduce((acc, point) =>
-            setBrush(acc, point, state.brush,  state.pattern),
+            drawBrush(acc, point, state.brush,  state.pattern),
         state.preview)
         return {
             lastPoint: payload,
@@ -266,7 +255,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "eraser" && type === "down") {
-        const preview = setBrush(createBuffer(width, height), payload, state.brush, 0)
+        const preview = drawBrush(createBuffer(width, height), payload, state.brush, 0)
         return {
             lastPoint: payload,
             preview
@@ -275,7 +264,7 @@ function reducer (state, type, payload) {
     if (state.tool === "eraser" && type === "drag") {
         const points = bresenham(state.lastPoint.x, state.lastPoint.y, payload.x, payload.y)
         const preview = points.reduce((acc, point) =>
-            setBrush(acc, point, state.brush, 0),
+            drawBrush(acc, point, state.brush, 0),
         state.preview)
         return {
             lastPoint: payload,
@@ -284,30 +273,18 @@ function reducer (state, type, payload) {
     }
 
     // shapelike tools -- stateless preview
-    if (state.tool === "line" && type === "down") {
-        const preview = setPencil(createBuffer(width, height), payload)
+    if ((state.tool === "line" || state.tool === "rectangle")
+        && type === "down") {
         return {
             startPoint: payload,
-            preview,
         }
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
-        const points = bresenham(state.startPoint.x, state.startPoint.y, payload.x, payload.y)
-        const preview = points.reduce(
-            (acc, point) => setPencil(acc, point),
-            createBuffer(width, height))
         return {
-            preview,
+            preview: drawLine(createBuffer(width, height), state.startPoint, payload)
         }
     }
 
-    if (state.tool === "rectangle" && type === "down") {
-        const preview = setPencil(createBuffer(width, height), payload)
-        return {
-            startPoint: payload,
-            preview,
-        }
-    }
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         const preview = setRectangle(
             createBuffer(width, height),
@@ -370,12 +347,12 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "select" && type === "drag" && state.movingSelection) {
-        return {
-            preview: blankSelection(state.selection),
-            translateSelection: translate(state.selection, state.startPoint, payload),
-        }
-    }
+    // if (state.tool === "select" && type === "drag" && state.movingSelection) {
+    //     return {
+    //         preview: blankSelection(state.selection),
+    //         translateSelection: translate(state.selection, state.startPoint, payload),
+    //     }
+    // }
 
     if (state.tool === "select" && type === "drag") {
         const preview = setRectangle(
@@ -387,18 +364,18 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (state.tool === "select" && type === "up" && state.movingSelection) {
-        const copy = copySelection(state.pixels, state.selection)
-
-        return {
-            startPoint: null,
-            undoBuffer: state.pixels,
-            preview: null,
-            pixels: composite(
-                deleteSelection(state.pixels, state.selection),
-                copySelection(state.pixels, state.selection))
-        }
-    }
+    // if (state.tool === "select" && type === "up" && state.movingSelection) {
+    //     const copy = copySelection(state.pixels, state.selection)
+    //
+    //     return {
+    //         startPoint: null,
+    //         undoBuffer: state.pixels,
+    //         preview: null,
+    //         pixels: composite(
+    //             deleteSelection(state.pixels, state.selection),
+    //             copySelection(state.pixels, state.selection))
+    //     }
+    // }
 
     if (state.tool === "select" && state.startPoint && type === "up") {
         return {

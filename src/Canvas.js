@@ -1,12 +1,6 @@
 import PropTypes from "prop-types"
 import React, { Component } from "react"
-import { colors } from "./config"
-
-const mapColors = {
-    [colors.transparent]: "#eee",
-    [colors.black]: "#000",
-    [colors.white]: "#fff",
-}
+import { setImageData } from "./buffer"
 
 export default class Canvas extends Component {
     static propTypes = {
@@ -30,25 +24,8 @@ export default class Canvas extends Component {
         this.ctx = e.getContext("2d")
     }
     renderCanvas = () => {
-        const { width, height, scale } = this.props
-
-        this.ctx.fillStyle = "#fff"
-        this.ctx.fillRect(0,0, width << scale, height << scale)
-
-        this.ctx.fillStyle = "#000"
-
-        for (let y = 0; y < height; y++) {
-            for(let x = 0; x < width; x++) {
-                const px = this.props.pixels[y][x]
-                if (px === colors.black) {
-                    this.ctx.fillRect(
-                        x << scale,
-                        y << scale,
-                        1 << scale,
-                        1 << scale)
-                }
-            }
-        }
+        const { scale } = this.props
+        setImageData(this.ctx, this.props.pixels, scale)
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {
