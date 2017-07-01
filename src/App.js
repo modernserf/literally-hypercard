@@ -221,6 +221,7 @@ const initState = {
     fillShapes: true,
     selection: null,
     selectionMarquee: null,
+    clipboard: null,
 }
 
 function reducer (state, type, payload) {
@@ -252,6 +253,48 @@ function reducer (state, type, payload) {
             undoBuffer: state.pixels,
         }
     }
+
+    if (type === "cut" && state.selection) {
+        return {
+            undoBuffer: state.pixels,
+            pixels: composite(state.pixels, blankSelection(state.selection)),
+            clipboard: state.selection,
+            selection: null,
+            preview: null,
+        }
+    }
+
+    if (type === "copy" && state.selection) {
+        return {
+            clipboard: state.selection,
+        }
+    }
+
+    // TODO: paste into selection
+
+    if (type === "paste" && state.selection && state.clipboard) {
+        return {
+            ...commitSelection(state),
+            tool: "select",
+            selection: state.clipboard,
+            selectionMarquee: setRectangle(
+                createBuffer(state.width, state.height),
+                { x: 0, y: 0 },
+                { x: state.width, y: state.height })
+        }
+    }
+
+    if (type === "paste" && state.clipboard) {
+        return {
+            tool: "select",
+            selection: state.clipboard,
+            selectionMarquee: setRectangle(
+                createBuffer(state.width, state.height),
+                { x: 0, y: 0 },
+                { x: state.width, y: state.height })
+        }
+    }
+
 
     if (type === "toggleFillShapes") {
         return { fillShapes: !state.fillShapes }
@@ -432,6 +475,24 @@ const Flex = styled.div`
     }
 `
 
+const editActions = ["undo", "cut", "copy", "paste"]
+
+function EditActions ({ dispatch }) {
+    return (
+        <div>
+            <h3>edit</h3>
+            <ul>{editActions.map((name) => (
+                <li key={name}>
+                    <button onClick={() => dispatch(name)}>
+                        {name}
+                    </button>
+                </li>
+            ))}
+            </ul>
+        </div>
+    )
+}
+
 class App extends Component {
     state = initState
     dispatch = (type, payload) => {
@@ -462,12 +523,7 @@ class App extends Component {
                         dispatch={this.dispatch}
                         patterns={patterns}
                         scale={this.state.scale}/>
-                    <div>
-                        <h3>edit</h3>
-                        <button onClick={() => this.dispatch("undo")}>
-                            undo
-                        </button>
-                    </div>
+                    <EditActions dispatch={this.dispatch} />
                     <div>
                         <h3>fill shapes</h3>
                         <button onClick={() => this.dispatch("toggleFillShapes")}>
