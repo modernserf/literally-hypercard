@@ -3,7 +3,7 @@ import styled from "styled-components"
 import "./App.css"
 import { colors, tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
-import { getPixel, createBuffer, copy } from "./buffer"
+import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -54,6 +54,20 @@ function reducer (state, type, payload) {
         return {
             undoBuffer: state.pixels,
             pixels: createBuffer(state.width, state.height),
+        }
+    }
+
+    if (type === "flip horizontal") {
+        return {
+            undoBuffer: state.pixels,
+            pixels: flipHorizontal(state.pixels),
+        }
+    }
+
+    if (type === "flip vertical") {
+        return {
+            undoBuffer: state.pixels,
+            pixels: flipVertical(state.pixels),
         }
     }
 

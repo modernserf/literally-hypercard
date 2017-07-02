@@ -8,7 +8,8 @@ export const editActions = [
     "undo",
     // "cut", "copy", "paste",
     "clear",
-    // "select all"
+    // "select all",
+    "flip horizontal", "flip vertical"
 ]
 
 

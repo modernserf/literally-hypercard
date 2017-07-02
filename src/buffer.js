@@ -93,3 +93,35 @@ export function setImageData (ctx, buffer, scale, _frame, patterns) {
 
     ctx.putImageData(imageData, 0, 0)
 }
+
+export function flipHorizontal (buffer) {
+    const w = buffer.width
+    const h = buffer.height
+    const out = createBuffer(w, h)
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            setPixel(out,
+                w - x,
+                y,
+                getPixel(buffer, x, y))
+        }
+    }
+    return out
+}
+
+export function flipVertical (buffer) {
+    const w = buffer.width
+    const h = buffer.height
+    const out = createBuffer(w, h)
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            setPixel(out,
+                x,
+                h - y,
+                getPixel(buffer, x, y))
+        }
+    }
+    return out
+}
