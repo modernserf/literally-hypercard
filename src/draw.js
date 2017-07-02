@@ -21,11 +21,23 @@ export function drawPencil (buffer, start, end, value) {
 }
 
 
-// TODO: line width
-export function drawLine (buffer, start, end) {
+export function drawLine (buffer, start, end, brush) {
     const points = bresenham(start.x, start.y, end.x, end.y)
+    const w = getWidth(brush)
+    const h = getHeight(brush)
     for (let i = 0; i < points.length; i++) {
-        setPixel(buffer, points[i].x, points[i].y, 1)
+        const point = points[i]
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (getPixel(brush, x, y)) {
+                    setPixel(
+                        buffer,
+                        point.x + x,
+                        point.y + y,
+                        colors.black)
+                }
+            }
+        }
     }
     return buffer
 }

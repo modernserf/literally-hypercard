@@ -26,6 +26,9 @@ export const brushes = (() => {
 
     return [
         [
+            [X],
+        ],
+        [
             [X,X,X],
             [X,X,X],
             [X,X,X]

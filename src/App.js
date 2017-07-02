@@ -114,7 +114,7 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
         return {
-            preview: drawLine(createBuffer(state.width, state.height), state.startPoint, payload)
+            preview: drawLine(createBuffer(state.width, state.height), state.startPoint, payload, brush)
         }
     }
 
