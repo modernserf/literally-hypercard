@@ -1,6 +1,6 @@
 import floodFillScanline from "./floodFillScanline"
 import bresenham from "bresenham"
-import { getPixel, setPixel, getWidth, getHeight, createBuffer, copy } from "./buffer"
+import { getPixel, setPixel, getWidth, getHeight, copy } from "./buffer"
 import { colors } from "./config"
 
 export function drawPencil (buffer, start, end, value) {
@@ -112,7 +112,6 @@ export function setEllipse (buffer, p0, p1, fill) {
 export function setFill (buffer, point, fill) {
     const width = getWidth(buffer)
     const height = getHeight(buffer)
-    const dest = createBuffer(width, height)
     const fillTest = copy(buffer)
     const matchColor = getPixel(buffer, point.x, point.y)
 
@@ -123,10 +122,10 @@ export function setFill (buffer, point, fill) {
     }
     const paint = (x, y) => {
         setPixel(fillTest, x, y, fill)
-        setPixel(dest, x, y, fill)
+        setPixel(buffer, x, y, fill)
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
-    return dest
+    return buffer
 }
 
 // utilities

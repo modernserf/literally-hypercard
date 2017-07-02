@@ -3,7 +3,7 @@ import styled from "styled-components"
 import "./App.css"
 import { colors, tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
-import { getPixel, createBuffer, composite } from "./buffer"
+import { getPixel, createBuffer, copy } from "./buffer"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -69,39 +69,42 @@ function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             pencilValue: value,
-            preview: drawPencil(createBuffer(state.width, state.height), payload, null, value)
+            undoBuffer: state.pixels,
+            pixels: drawPencil(copy(state.pixels), payload, null, value)
         }
     }
     if (state.tool === "pencil" && type === "drag") {
         return {
             lastPoint: payload,
-            preview: drawPencil(state.preview, state.lastPoint, payload, state.pencilValue),
+            pixels: drawPencil(state.pixels, state.lastPoint, payload, state.pencilValue),
         }
     }
 
     if (state.tool === "brush" && type === "down") {
         return {
             lastPoint: payload,
-            preview: drawBrush(createBuffer(state.width, state.height), payload, null, brush, state.pattern)
+            undoBuffer: state.pixels,
+            pixels: drawBrush(copy(state.pixels), payload, null, brush, state.pattern)
         }
     }
     if (state.tool === "brush" && type === "drag") {
         return {
             lastPoint: payload,
-            preview: drawBrush(state.preview, state.lastPoint, payload, brush, state.pattern)
+            pixels: drawBrush(state.pixels, state.lastPoint, payload, brush, state.pattern)
         }
     }
 
     if (state.tool === "eraser" && type === "down") {
         return {
             lastPoint: payload,
-            preview: erase(createBuffer(state.width, state.height), payload, null, brush)
+            undoBuffer: state.pixels,
+            pixels: erase(copy(state.pixels), payload, null, brush)
         }
     }
     if (state.tool === "eraser" && type === "drag") {
         return {
             lastPoint: payload,
-            preview: erase(state.preview, state.lastPoint, payload, brush)
+            pixels: erase(state.pixels, state.lastPoint, payload, brush)
         }
     }
 
@@ -109,53 +112,39 @@ function reducer (state, type, payload) {
     if (["line","rectangle","ellipse"].includes(state.tool) && type === "down") {
         return {
             startPoint: payload,
+            undoBuffer: state.pixels,
         }
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
         return {
-            preview: drawLine(createBuffer(state.width, state.height), state.startPoint, payload, brush)
+            pixels: drawLine(copy(state.undoBuffer), state.startPoint, payload, brush)
         }
     }
 
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
-        const preview = setRectangle(
-            createBuffer(state.width, state.height),
-            state.startPoint,
-            payload,
-            state.fillShapes && state.pattern)
         return {
-            preview,
+            pixels: setRectangle(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.pattern)
         }
     }
 
-    if (state.tool === "ellipse" &&  state.startPoint && type === "drag") {
-        const preview = setEllipse(
-            createBuffer(state.width, state.height),
-            state.startPoint,
-            payload,
-            state.fillShapes && state.pattern)
+    if (state.tool === "ellipse" && state.startPoint && type === "drag") {
         return {
-            preview,
+            pixels: setEllipse(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.pattern)
         }
     }
 
-    if (["pencil","brush","eraser","line","rectangle","ellipse"].includes(state.tool) &&
-        state.preview && type === "up") {
+    if (["pencil","brush","eraser","line","rectangle","ellipse"].includes(state.tool) && type === "up") {
         return {
             pencilValue: null,
             startPoint: null,
             lastPoint: null,
-            undoBuffer: state.pixels,
-            pixels: composite(state.pixels, state.preview),
-            preview: null,
         }
     }
 
     if (state.tool === "bucket" && type === "down") {
-        const filled = setFill(state.pixels, payload, state.pattern)
         return {
             undoBuffer: state.pixels,
-            pixels: composite(state.pixels, filled)
+            pixels: setFill(copy(state.pixels), payload, state.pattern)
         }
     }
 }
@@ -190,29 +179,26 @@ class App extends Component {
         this.setState((state) => reducer(state, type, payload) || {})
     }
     render() {
-        const pixels = [
-            this.state.pixels,
-            this.state.preview,
-        ].reduce(composite)
+        const { pixels, tool, brush, pattern, scale } = this.state
 
         return (
             <div className="App">
                 <Canvas pixels={pixels}
                     patterns={patterns}
                     dispatch={this.dispatch}
-                    scale={this.state.scale} />
+                    scale={scale} />
                 <Flex>
-                    <Tools selected={this.state.tool}
+                    <Tools selected={tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
-                    <Brushes selected={this.state.brush}
+                    <Brushes selected={brush}
                         dispatch={this.dispatch}
-                        scale={this.state.scale}
+                        scale={scale}
                         brushes={brushes}/>
-                    <Patterns selected={this.state.pattern}
+                    <Patterns selected={pattern}
                         dispatch={this.dispatch}
                         patterns={patterns}
-                        scale={this.state.scale}/>
+                        scale={scale}/>
                     <EditActions dispatch={this.dispatch} />
                     <div>
                         <h3>fill shapes</h3>

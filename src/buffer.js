@@ -11,10 +11,6 @@ export function setPixel (buffer, x, y, value) {
     buffer.data[x + y * buffer.width] = value
 }
 
-function uncheckedSetPixel (buffer, x ,y, value) {
-    buffer.data[x + y * buffer.width] = value
-}
-
 export function getWidth (buffer) {
     return buffer.width
 }
@@ -49,32 +45,6 @@ export function copy(buffer) {
     }
 }
 
-export function composite (bottom, top) {
-    if (!top) { return bottom }
-    const out = copy(bottom)
-    const offsetX = top.offsetX || 0
-    const offsetY = top.offsetY || 0
-    for (let y = 0; y < bottom.height; y++) {
-        for (let x = 0; x < bottom.width; x++) {
-            const t = getPixel(top, x + offsetX, y + offsetY)
-            if (t === colors.transparent) {
-                // do nothing
-            } else if (t === colors.white) {
-                uncheckedSetPixel(out, x, y, colors.transparent)
-            } else {
-                uncheckedSetPixel(out, x, y, t)
-            }
-        }
-    }
-    return out
-}
-
-export function translate (buffer, p0, p1) {
-    buffer.offsetX = p0.x - p1.x
-    buffer.offsetY = p0.y - p1.y
-    return buffer
-}
-
 function fastLog(n) {
     for (let i = 1; i < 10; i++) {
         if ((1 << i) === n) { return i }
@@ -83,9 +53,8 @@ function fastLog(n) {
 }
 
 export function setImageData (ctx, buffer, scale, _frame, patterns) {
-    const w = getWidth(buffer)
-    const h = getHeight(buffer)
-
+    const w = buffer.width
+    const h = buffer.height
     const logW = buffer.logW
 
     const getFilled = patterns
