@@ -1,6 +1,15 @@
-export const tools = ["pencil", "brush", "eraser", "line", "rectangle", "ellipse", "bucket", "select"]
+export const tools = [
+    "pencil", "brush", "eraser",
+    "line", "rectangle", "ellipse", "bucket",
+    // "select"
+]
 
-export const editActions = ["undo", "cut", "copy", "paste", "clear", "select all"]
+export const editActions = [
+    "undo",
+    // "cut", "copy", "paste",
+    "clear",
+    // "select all"
+]
 
 
 export const colors = {
