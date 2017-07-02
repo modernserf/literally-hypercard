@@ -49,7 +49,7 @@ export function composite (bottom, top) {
             const t = getPixel(top, x + offsetX, y + offsetY)
             if (t === colors.transparent) {
                 // do nothing
-            } else if (t === colors.erase) {
+            } else if (t === colors.white) {
                 uncheckedSetPixel(out, x, y, colors.transparent)
             } else {
                 uncheckedSetPixel(out, x, y, t)
@@ -65,24 +65,22 @@ export function translate (buffer, p0, p1) {
     return buffer
 }
 
-const cycleColors = [0,0,1,1]
-
-export function setImageData (ctx, buffer, scale, frame = 0) {
+export function setImageData (ctx, buffer, scale, _frame, patterns) {
     const w = getWidth(buffer)
     const h = getHeight(buffer)
 
-    ctx.fillStyle = "#000"
+    const getFilled = patterns ?
+        (px, x, y) => px && getPixel(patterns[px - 1], x % 4, y % 4) :
+        (px) => px
 
     const imageData = ctx.createImageData(w << scale, h << scale)
     const ln = imageData.data.length
     for (let i = 0; i < ln; i += 4) {
-        const y = (i >> 2 >> scale) / (w << scale)
+        const y = (i >> 2 >> scale) / (w << scale) | 0
         const x = (i >> 2 >> scale) % (w << scale - 1)
-        const px = getPixel(buffer, x, y | 0)
+        const px = getPixel(buffer, x, y)
 
-        const cycleFill = (px & 8) && cycleColors[(px - 8 + (frame >> 1)) % 4]
-
-        if (px === colors.black || cycleFill) {
+        if (getFilled(px, x, y)) {
             imageData.data[i] = 0
             imageData.data[i + 1] = 0
             imageData.data[i + 2] = 0

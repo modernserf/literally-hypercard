@@ -28,8 +28,8 @@ export default class Canvas extends Component {
     }
     renderCanvas = () => {
         this.frame++
-        const { scale } = this.props
-        setImageData(this.ctx, this.props.pixels, scale, this.frame)
+        const { scale, patterns } = this.props
+        setImageData(this.ctx, this.props.pixels, scale, this.frame, patterns)
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {

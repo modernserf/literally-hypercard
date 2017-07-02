@@ -19,7 +19,7 @@ const initState = {
     scale: 1,
     tool: "brush",
     brush: 3,
-    pattern: 1,
+    pattern: 2,
     undoBuffer: createBuffer(size, size),
     pixels: createBuffer(size, size),
     startPoint: null,
@@ -29,7 +29,6 @@ const initState = {
 
 function reducer (state, type, payload) {
     const brush = brushes[state.brush]
-    const pattern = patterns[state.pattern]
 
     // set tools
     if (type === "selectTool") {
@@ -83,13 +82,13 @@ function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "down") {
         return {
             lastPoint: payload,
-            preview: drawBrush(createBuffer(state.width, state.height), payload, null, brush, pattern)
+            preview: drawBrush(createBuffer(state.width, state.height), payload, null, brush, state.pattern)
         }
     }
     if (state.tool === "brush" && type === "drag") {
         return {
             lastPoint: payload,
-            preview: drawBrush(state.preview, state.lastPoint, payload, brush, pattern)
+            preview: drawBrush(state.preview, state.lastPoint, payload, brush, state.pattern)
         }
     }
 
@@ -123,7 +122,7 @@ function reducer (state, type, payload) {
             createBuffer(state.width, state.height),
             state.startPoint,
             payload,
-            state.fillShapes && pattern)
+            state.fillShapes && state.pattern)
         return {
             preview,
         }
@@ -134,7 +133,7 @@ function reducer (state, type, payload) {
             createBuffer(state.width, state.height),
             state.startPoint,
             payload,
-            state.fillShapes && pattern)
+            state.fillShapes && state.pattern)
         return {
             preview,
         }
@@ -153,7 +152,7 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "bucket" && type === "down") {
-        const pixels = setFill(state.pixels, payload, pattern)
+        const pixels = setFill(state.pixels, payload, state.pattern)
         return {
             undoBuffer: state.pixels,
             pixels
@@ -194,13 +193,12 @@ class App extends Component {
         const pixels = [
             this.state.pixels,
             this.state.preview,
-            this.state.selection,
-            this.state.selectionMarquee
         ].reduce(composite)
 
         return (
             <div className="App">
                 <Canvas pixels={pixels}
+                    patterns={patterns}
                     dispatch={this.dispatch}
                     scale={this.state.scale} />
                 <Flex>

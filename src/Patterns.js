@@ -19,8 +19,8 @@ export default function Patterns ({ selected, dispatch, patterns, scale }) {
             <h3>patterns</h3>
             <ul>{patterns.map((pattern,i) => (
                 <li key={i}>
-                    <PatternButton selected={selected === i}
-                        onClick={() => dispatch("selectPattern", i)}>
+                    <PatternButton selected={selected === i + 1}
+                        onClick={() => dispatch("selectPattern", i + 1)}>
                         <div>
                             <Icon pixels={pattern} scale={scale} />
                             <Icon pixels={pattern} scale={scale} />

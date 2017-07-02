@@ -66,7 +66,7 @@ export const brushes = (() => {
 
 export const patterns = (() => {
     const X = colors.black
-    const _ = colors.white
+    const _ = colors.transparent
 
     return [
         [

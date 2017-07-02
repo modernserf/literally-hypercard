@@ -3,14 +3,6 @@ import bresenham from "bresenham"
 import { getPixel, setPixel, getWidth, getHeight, createBuffer, composite } from "./buffer"
 import { colors } from "./config"
 
-// TODO: move to buffer?
-export function drawPattern (buffer, pattern, x, y) {
-    const h = getHeight(pattern)
-    const w = getWidth(pattern)
-    const px = getPixel(pattern, x % w, y % h)
-    setPixel(buffer, x, y, px)
-}
-
 export function drawPencil (buffer, start, end, value) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
 
@@ -20,88 +12,33 @@ export function drawPencil (buffer, start, end, value) {
     return buffer
 }
 
-
-export function drawLine (buffer, start, end, brush) {
+export function drawLine (buffer, start, end, brush, stroke=colors.black) {
     const points = bresenham(start.x, start.y, end.x, end.y)
-    const w = getWidth(brush)
-    const h = getHeight(brush)
-    for (let i = 0; i < points.length; i++) {
-        const point = points[i]
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                if (getPixel(brush, x, y)) {
-                    setPixel(
-                        buffer,
-                        point.x + x,
-                        point.y + y,
-                        colors.black)
-                }
-            }
-        }
-    }
-    return buffer
+    return drawLinePoints(buffer, points, brush, stroke)
 }
 
-export function drawBrush (buffer, start, end, brush, pattern) {
+export function drawBrush (buffer, start, end, brush, fill) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
-    const w = getWidth(brush)
-    const h = getHeight(brush)
-    const offsetX = w >> 1
-    const offsetY = h >> 1
-
-    for (let i = 0; i < points.length; i++) {
-        const point = points[i]
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                if (getPixel(brush, x, y)) {
-                    drawPattern(
-                        buffer,
-                        pattern,
-                        point.x + x - offsetX,
-                        point.y + y - offsetY)
-                }
-            }
-        }
-    }
-    return buffer
+    return drawLinePoints(buffer, points, brush, fill)
 }
 
 export function erase (buffer, start, end, brush) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
-    const w = getWidth(brush)
-    const h = getHeight(brush)
-    const offsetX = w >> 1
-    const offsetY = h >> 1
-
-    for (let i = 0; i < points.length; i++) {
-        const point = points[i]
-        for (let y = 0; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                if (getPixel(brush, x, y)) {
-                    setPixel(
-                        buffer,
-                        point.x + x - offsetX,
-                        point.y + y - offsetY,
-                        colors.erase)
-                }
-            }
-        }
-    }
-    return buffer
+    return drawLinePoints(buffer, points, brush, colors.white)
 }
 
-export function setRectangle (buffer, p0, p1, pattern) {
+export function setRectangle (buffer, p0, p1, fill) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
 
     for (let y = y0; y <= y1; y++) {
         for (let x = x0; x <= x1; x++) {
-            if (pattern) {
-                drawPattern(buffer, pattern, x, y)
+            if (fill) {
+                setPixel(buffer, x, y, fill)
             }
             // draw sides
             if (y === y0 || y === y1 || x === x0 || x === x1) {
-                setPixel(buffer, x, y, 1)
+                setPixel(buffer, x, y, colors.black)
             }
         }
     }
@@ -109,11 +46,9 @@ export function setRectangle (buffer, p0, p1, pattern) {
     return buffer
 }
 
-function order (a, b) {
-    return a < b ? [a,b] : [b,a]
-}
+export function setEllipse (buffer, p0, p1, fill) {
+    const stroke = colors.black
 
-export function setEllipse (buffer, p0, p1, pattern) {
     const [x0, x1] = order(p0.x, p1.x)
     const [y0, y1] = order(p0.y, p1.y)
     // radii
@@ -131,17 +66,17 @@ export function setEllipse (buffer, p0, p1, pattern) {
 
     /* first half */
     for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        if (pattern) {
+        if (fill) {
             for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, pattern, _x, yc + y - 1)
-                drawPattern(buffer, pattern, _x, yc - y + 1)
+                setPixel(buffer, _x, yc + y - 1, fill)
+                setPixel(buffer, _x, yc - y + 1, fill)
             }
         }
 
-        setPixel(buffer, xc + x, yc + y, 1)
-        setPixel(buffer, xc - x, yc + y, 1)
-        setPixel(buffer, xc + x, yc - y, 1)
-        setPixel(buffer, xc - x, yc - y, 1)
+        setPixel(buffer, xc + x, yc + y, stroke)
+        setPixel(buffer, xc - x, yc + y, stroke)
+        setPixel(buffer, xc + x, yc - y, stroke)
+        setPixel(buffer, xc - x, yc - y, stroke)
 
         if (sigma >= 0) {
             sigma += fa2 * (1 - y)
@@ -152,17 +87,17 @@ export function setEllipse (buffer, p0, p1, pattern) {
 
     /* second half */
     for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        if (pattern) {
+        if (fill) {
             for (let _x = xc - x; _x <= xc + x; _x++) {
-                drawPattern(buffer, pattern, _x, yc + y)
-                drawPattern(buffer, pattern, _x, yc - y)
+                setPixel(buffer, _x, yc + y, fill)
+                setPixel(buffer, _x, yc - y, fill)
             }
         }
 
-        setPixel(buffer, xc + x, yc + y, 1)
-        setPixel(buffer, xc - x, yc + y, 1)
-        setPixel(buffer, xc + x, yc - y, 1)
-        setPixel(buffer, xc - x, yc - y, 1)
+        setPixel(buffer, xc + x, yc + y, stroke)
+        setPixel(buffer, xc - x, yc + y, stroke)
+        setPixel(buffer, xc + x, yc - y, stroke)
+        setPixel(buffer, xc - x, yc - y, stroke)
 
         if (sigma >= 0) {
             sigma += fb2 * (1 - x)
@@ -174,19 +109,53 @@ export function setEllipse (buffer, p0, p1, pattern) {
     return buffer
 }
 
-export function setFill (buffer, point, pattern) {
+export function setFill (buffer, point, fill) {
     const width = getWidth(buffer)
     const height = getHeight(buffer)
     const dest = createBuffer(width, height)
     const fillTest = composite(buffer, createBuffer(width, height))
+    const matchColor = getPixel(buffer, point.x, point.y)
+
     const test = (x, y) => {
         if (x < 0 || y < 0 || x >= width || y >= height) { return false }
-        return !getPixel(fillTest, x, y)
+        const px = getPixel(fillTest, x, y)
+        return px !== fill && px === matchColor
     }
     const paint = (x, y) => {
-        setPixel(fillTest, x, y, 1)
-        drawPattern(dest, pattern, x, y)
+        setPixel(fillTest, x, y, fill)
+        setPixel(dest, x, y, fill)
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
     return composite(buffer, dest)
+}
+
+// utilities
+
+function order (a, b) {
+    return a < b ? [a,b] : [b,a]
+}
+
+function drawPoint (buffer, px, py, brush, value) {
+    const w = getWidth(brush)
+    const h = getHeight(brush)
+    const offsetX = w >> 1
+    const offsetY = h >> 1
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            if (getPixel(brush, x, y)) {
+                setPixel(
+                    buffer,
+                    px + x - offsetX,
+                    py + y - offsetY,
+                    value)
+            }
+        }
+    }
+}
+
+function drawLinePoints(buffer, points, brush, value) {
+    for (let i = 0; i < points.length; i++) {
+        drawPoint(buffer, points[i].x, points[i].y, brush, value)
+    }
+    return buffer
 }
