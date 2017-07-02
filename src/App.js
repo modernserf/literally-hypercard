@@ -152,10 +152,10 @@ function reducer (state, type, payload) {
     }
 
     if (state.tool === "bucket" && type === "down") {
-        const pixels = setFill(state.pixels, payload, state.pattern)
+        const filled = setFill(state.pixels, payload, state.pattern)
         return {
             undoBuffer: state.pixels,
-            pixels
+            pixels: composite(state.pixels, filled)
         }
     }
 }
