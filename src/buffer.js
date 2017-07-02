@@ -57,18 +57,10 @@ function fastLog(n) {
     return Math.log2(n) | 0
 }
 
-export function setImageData (ctx, buffer, scale, _frame, patterns) {
+export function setImageData (ctx, buffer, scale, frame, palette) {
     const w = buffer.width
     const h = buffer.height
     const logW = buffer.logW
-
-    const getFilled = patterns
-        ? (px, x, y) => {
-            if (!px) { return 0 }
-            // all patterns are 4x4
-            return getPixel(patterns[px - 1], x & 3, y & 3)
-        }
-        : (px) => px
 
     const imageData = ctx.createImageData(w << scale, h << scale)
     const ln = imageData.data.length
@@ -78,18 +70,32 @@ export function setImageData (ctx, buffer, scale, _frame, patterns) {
     // a % b => a & b - 1
     const xScale = (1 << logW + scale - 1) - 1
 
-    for (let i = 0; i < ln; i += 4) {
-        const y = i >> yScale
-        const x = (i >> 2 >> scale) & xScale
-        const px = getPixel(buffer, x, y)
-
-        if (getFilled(px, x, y)) {
-            imageData.data[i] = 0
-            imageData.data[i + 1] = 0
-            imageData.data[i + 2] = 0
-            imageData.data[i + 3] = 255
+    if (palette) {
+        for (let i = 0; i < ln; i += 4) {
+            const y = i >> yScale
+            const x = (i >> 2 >> scale) & xScale
+            const px = palette.getPixel(buffer, x, y, frame)
+            imageData.data[i] = px.r
+            imageData.data[i + 1] = px.g
+            imageData.data[i + 2] = px.b
+            imageData.data[i + 3] = px.a
         }
+    } else {
+        for (let i = 0; i < ln; i += 4) {
+            const y = i >> yScale
+            const x = (i >> 2 >> scale) & xScale
+            const px = getPixel(buffer, x, y)
+
+            if (px) {
+                imageData.data[i] = 0
+                imageData.data[i + 1] = 0
+                imageData.data[i + 2] = 0
+                imageData.data[i + 3] = 255
+            }
+        }
+
     }
+
 
     ctx.putImageData(imageData, 0, 0)
 }

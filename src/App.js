@@ -2,8 +2,9 @@ import React, { Component } from "react"
 import styled from "styled-components"
 import "./App.css"
 import { colors, tools, editActions } from "./config"
-import { brushes, patterns } from "./resources"
+import { brushes, patterns, cycles } from "./resources"
 import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
+import Palette from "./palette"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -25,6 +26,12 @@ const initState = {
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
+    palette: new Palette({
+        foreground: {r:0,g:0,b:0,a:255},
+        background: {r:255,g:255,b:255,a:255},
+        patterns,
+        cycles,
+    })
 }
 
 function reducer (state, type, payload) {
@@ -194,13 +201,14 @@ class App extends Component {
         this.setState((state) => reducer(state, type, payload) || {})
     }
     render() {
-        const { pixels, tool, brush, pattern, scale } = this.state
+        const { pixels, tool, brush, pattern, scale, palette } = this.state
 
         return (
             <Flex>
                 <div>
                     <Canvas pixels={pixels}
                         patterns={patterns}
+                        palette={palette}
                         dispatch={this.dispatch}
                         scale={scale} />
                 </div>
@@ -215,6 +223,7 @@ class App extends Component {
                     <Patterns selected={pattern}
                         dispatch={this.dispatch}
                         patterns={patterns}
+                        palette={palette}
                         scale={scale}/>
                     <EditActions dispatch={this.dispatch} />
                     <div>

@@ -15,11 +15,6 @@ export const editActions = [
 
 export const colors = {
     transparent: 0,
-    white: 1,
-    black: 2,
-
-    cycle1: 8,  // 1000
-    cycle2: 9,  // 1001
-    cycle3: 10, // 1010
-    cycle4: 11, // 1011
+    white: 0,
+    black: 1,
 }

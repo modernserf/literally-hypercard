@@ -7,6 +7,7 @@ export default class Canvas extends Component {
         pixels: PropTypes.object.isRequired,
         dispatch: PropTypes.func.isRequired,
         scale: PropTypes.number.isRequired,
+        palette: PropTypes.object.isRequired,
     }
     state = {
         mouseDown: false,
@@ -28,8 +29,8 @@ export default class Canvas extends Component {
     }
     renderCanvas = () => {
         this.frame++
-        const { scale, patterns } = this.props
-        setImageData(this.ctx, this.props.pixels, scale, this.frame, patterns)
+        const { scale, palette } = this.props
+        setImageData(this.ctx, this.props.pixels, scale, this.frame, palette)
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {

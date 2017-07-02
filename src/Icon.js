@@ -6,8 +6,9 @@ export default class Icon extends Component {
     static propTypes = {
         scale: PropTypes.number.isRequired,
         pixels: PropTypes.object.isRequired,
-        patterns: PropTypes.array,
+        palette: PropTypes.object,
     }
+    frame = 0
     componentDidMount () {
         if (this.ctx) { this.renderCanvas() }
     }
@@ -19,8 +20,10 @@ export default class Icon extends Component {
         this.ctx = e.getContext("2d")
     }
     renderCanvas = () => {
-        const { pixels, scale, patterns } = this.props
-        setImageData(this.ctx, pixels, scale, 0, patterns)
+        const { pixels, scale, palette } = this.props
+        setImageData(this.ctx, pixels, scale, this.frame, palette)
+        this.frame++
+        requestAnimationFrame(this.renderCanvas)
     }
     render () {
         const { pixels, scale } = this.props

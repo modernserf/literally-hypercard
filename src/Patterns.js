@@ -29,16 +29,16 @@ function fillPattern (value, width, height) {
     return buf
 }
 
-export default function Patterns ({ selected, dispatch, patterns, scale }) {
+export default function Patterns ({ selected, dispatch, palette, scale }) {
     return (
         <div>
             <h3>patterns</h3>
-            <Grid>{patterns.map((pattern, i) => (
+            <Grid>{palette.patterns.map((i) => (
                 <li key={i}>
-                    <PatternButton selected={selected === i + 1}
-                        onClick={() => dispatch("selectPattern", i + 1)}>
-                        <Icon pixels={fillPattern(i + 1, 16, 16)}
-                            patterns={patterns}
+                    <PatternButton selected={selected === i }
+                        onClick={() => dispatch("selectPattern", i)}>
+                        <Icon pixels={fillPattern(i, 16, 16)}
+                            palette={palette}
                             scale={scale}/>
                     </PatternButton>
                 </li>
