@@ -6,6 +6,7 @@ export default class Icon extends Component {
     static propTypes = {
         scale: PropTypes.number.isRequired,
         pixels: PropTypes.object.isRequired,
+        patterns: PropTypes.array,
     }
     componentDidMount () {
         if (this.ctx) { this.renderCanvas() }
@@ -18,8 +19,8 @@ export default class Icon extends Component {
         this.ctx = e.getContext("2d")
     }
     renderCanvas = () => {
-        const { pixels, scale } = this.props
-        setImageData(this.ctx, pixels, scale)
+        const { pixels, scale, patterns } = this.props
+        setImageData(this.ctx, pixels, scale, 0, patterns)
     }
     render () {
         const { pixels, scale } = this.props
@@ -27,7 +28,7 @@ export default class Icon extends Component {
         const width = getWidth(pixels)
 
         return (
-            <canvas style={{display: "inline-block"}} ref={this.initRef}
+            <canvas ref={this.initRef}
                 width={width << scale} height={height << scale}
             />
         )

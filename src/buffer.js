@@ -35,6 +35,11 @@ export function createBuffer (width, height) {
     return { width, height, data, logW, logH }
 }
 
+export function fillBuffer(buffer, value) {
+    buffer.data.fill(value)
+    return value
+}
+
 export function copy(buffer) {
     return {
         width: buffer.width,

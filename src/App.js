@@ -63,7 +63,8 @@ function reducer (state, type, payload) {
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        const value = getPixel(state.pixels, payload.x, payload.y) === colors.black ?
+        // TODO: what _should_ pencil do?
+        const value = getPixel(state.pixels, payload.x, payload.y) ?
             colors.white :
             colors.black
         return {
@@ -151,8 +152,8 @@ function reducer (state, type, payload) {
 
 const Flex = styled.div`
     display: flex;
-    > div {
-        padding: 10px;
+    .right {
+        margin-left: 1em;
     }
 `
 
@@ -182,12 +183,14 @@ class App extends Component {
         const { pixels, tool, brush, pattern, scale } = this.state
 
         return (
-            <div className="App">
-                <Canvas pixels={pixels}
-                    patterns={patterns}
-                    dispatch={this.dispatch}
-                    scale={scale} />
-                <Flex>
+            <Flex>
+                <div>
+                    <Canvas pixels={pixels}
+                        patterns={patterns}
+                        dispatch={this.dispatch}
+                        scale={scale} />
+                </div>
+                <div className="right">
                     <Tools selected={tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
@@ -206,8 +209,8 @@ class App extends Component {
                             {this.state.fillShapes ? "filled" : "empty"}
                         </button>
                     </div>
-                </Flex>
-            </div>
+                </div>
+            </Flex>
         )
     }
 }
