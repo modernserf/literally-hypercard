@@ -5,6 +5,7 @@ import { colors, tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
 import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
 import Palette, { createFillPattern } from "./palette"
+import AnimationControls from "./AnimationControls"
 import Color , {unformatValue} from "./Color"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
@@ -88,15 +89,10 @@ function reducer (state, type, payload) {
         return { fillShapes: !state.fillShapes }
     }
 
-    if (type === "selectForegroundColor") {
+    if (type === "selectColors") {
+        const { foreground, background } = payload
         return {
-            fill: createFillPattern(state.fill, { foreground: payload })
-        }
-    }
-
-    if (type === "selectBackgroundColor") {
-        return {
-            fill: createFillPattern(state.fill, { background: payload })
+            fill: createFillPattern(state.fill, { foreground, background })
         }
     }
 
@@ -109,9 +105,21 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (type === "toggleRoll") {
+    if (type === "setRoll") {
         return {
-            fill: createFillPattern(state.fill, { roll: {[payload]: true } })
+            fill: createFillPattern(state.fill, { roll: payload })
+        }
+    }
+
+    if (type === "setColorCycle") {
+        return {
+            fill: createFillPattern(state.fill, { colors: payload })
+        }
+    }
+
+    if (type === "setPatternCycle") {
+        return {
+            fill: createFillPattern(state.fill, { patterns: payload })
         }
     }
 
@@ -244,31 +252,18 @@ class App extends Component {
                         palette={palette}
                         dispatch={this.dispatch}
                         scale={scale} />
-                    <div>
-                        <h3>animations</h3>
-                        <div>
-                            <button onClick={() => this.dispatch("toggleRoll", "left")}>⬅️</button>
-                            <button onClick={() => this.dispatch("toggleRoll", "right")}>➡️</button>
-                            <button onClick={() => this.dispatch("toggleRoll", "up")}>⬆️</button>
-                            <button onClick={() => this.dispatch("toggleRoll", "down")}>⬇️</button>
-                        </div>
-                    </div>
+                    <AnimationControls fill={fill}
+                        palette={palette}
+                        dispatch={this.dispatch} />
                 </div>
                 <div className="right">
                     <Tools selected={tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
-                    <Color fill={fill}
-                        dispatch={this.dispatch}
-                        palette={palette} />
                     <Brushes selected={brush}
                         dispatch={this.dispatch}
                         scale={scale}
                         brushes={brushes}/>
-                    <Patterns selected={fill}
-                        dispatch={this.dispatch}
-                        palette={palette}
-                        scale={scale}/>
                     <EditActions dispatch={this.dispatch} />
                     <div>
                         <h3>fill shapes</h3>
@@ -276,7 +271,15 @@ class App extends Component {
                             {this.state.fillShapes ? "filled" : "empty"}
                         </button>
                     </div>
-
+                </div>
+                <div className="right">
+                    <Color fill={fill}
+                        dispatch={this.dispatch}
+                        palette={palette} />
+                    <Patterns selected={fill}
+                        dispatch={this.dispatch}
+                        palette={palette}
+                        scale={scale}/>
                 </div>
             </Flex>
         )

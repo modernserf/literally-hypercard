@@ -69,7 +69,7 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
     const xScale = (1 << logW + scale - 1) - 1
 
     if (palette) {
-        for (let i = 0; i < ln; i += 4) {
+        for (let i = 0; i < ln; i += 8) {
             const y = i >> yScale
             const x = (i >> 2 >> scale) & xScale
             const px = palette.getPixel(buffer, x, y, frame)
@@ -77,9 +77,13 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
             imageData.data[i + 1] = px.g
             imageData.data[i + 2] = px.b
             imageData.data[i + 3] = 255
+            imageData.data[i + 4] = px.r
+            imageData.data[i + 5] = px.g
+            imageData.data[i + 6] = px.b
+            imageData.data[i + 7] = 255
         }
     } else {
-        for (let i = 0; i < ln; i += 4) {
+        for (let i = 0; i < ln; i += 8) {
             const y = i >> yScale
             const x = (i >> 2 >> scale) & xScale
             const px = getPixel(buffer, x, y)
@@ -89,6 +93,10 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
                 imageData.data[i + 1] = 0
                 imageData.data[i + 2] = 0
                 imageData.data[i + 3] = 255
+                imageData.data[i + 4] = 0
+                imageData.data[i + 5] = 0
+                imageData.data[i + 6] = 0
+                imageData.data[i + 7] = 255
             }
         }
     }

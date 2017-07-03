@@ -40,21 +40,30 @@ export default function Color ({ fill, dispatch, palette }) {
                 <div key={i}>
                     <div>
                         {i === foreground ? (
-                            <button onClick={() => dispatch("selectBackgroundColor", i)}>
-                                foreground
+                            <button onClick={() => dispatch("selectColors", {
+                                background: foreground,
+                                foreground: background,
+                            })}>
+                                fg
                             </button>
                         ) : i === background ? (
-                            <button onClick={() => dispatch("selectForegroundColor", i)}>
-                                background
+                            <button onClick={() => dispatch("selectColors", {
+                                background: foreground,
+                                foreground: background
+                            })}>
+                                bg
                             </button>
                         ) : (
-                            <button onClick={() => dispatch("selectForegroundColor", i)}>
+                            <button onClick={() => dispatch("selectColors", {
+                                foreground: i,
+                                background: background,
+                            })}>
                                 x
                             </button>
                         )}
                     </div>
                     <ColorPicker value={color}
-                        onChange={(value) => this.dispatch("setColorValue", { color: value, index: i})}/>
+                        onChange={(value) => dispatch("setColorValue", { color: value, index: i})}/>
                 </div>
             ))}</Flex>
         </div>
