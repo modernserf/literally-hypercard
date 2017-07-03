@@ -2,9 +2,9 @@ import React, { Component } from "react"
 import styled from "styled-components"
 import "./App.css"
 import { colors, tools, editActions } from "./config"
-import { brushes, patterns, cycles } from "./resources"
+import { brushes, patterns } from "./resources"
 import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
-import Palette from "./palette"
+import Palette, { setForeground, setBackground, setPattern } from "./palette"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -14,25 +14,29 @@ import { drawBrush, drawPencil, setRectangle, erase, drawLine, setEllipse, setFi
 
 const size = 256
 
+const white = unformatValue("#FFFFFF")
+const black = unformatValue("#000000")
+const navy = unformatValue("#333366")
+const amber = unformatValue("#CC9900")
+
 const initState = {
     width: size,
     height: size,
     scale: 1,
     tool: "brush",
     brush: 3,
-    pattern: 2,
+    fill: 0b1001,
     undoBuffer: createBuffer(size, size),
     pixels: createBuffer(size, size),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
     palette: new Palette({
-        foreground: {r:0,g:0,b:0,a:255},
-        background: {r:255,g:255,b:255,a:255},
+        colors: [black, amber, white, navy],
         patterns,
-        cycles,
     })
 }
+
 
 function reducer (state, type, payload) {
     const brush = brushes[state.brush]
@@ -47,7 +51,9 @@ function reducer (state, type, payload) {
         return { brush: payload }
     }
     if (type === "selectPattern") {
-        return { pattern: payload }
+        return {
+            fill: payload,
+        }
     }
 
     if (type === "undo") {
@@ -82,6 +88,15 @@ function reducer (state, type, payload) {
         return { fillShapes: !state.fillShapes }
     }
 
+    if (type === "setColor") {
+        const { color, index } = payload
+
+        state.palette.colors[index] = color
+        return {
+            palette: state.palette,
+        }
+    }
+
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
         // TODO: what _should_ pencil do?
@@ -106,13 +121,13 @@ function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             undoBuffer: state.pixels,
-            pixels: drawBrush(copy(state.pixels), payload, null, brush, state.pattern)
+            pixels: drawBrush(copy(state.pixels), payload, null, brush, state.fill)
         }
     }
     if (state.tool === "brush" && type === "drag") {
         return {
             lastPoint: payload,
-            pixels: drawBrush(state.pixels, state.lastPoint, payload, brush, state.pattern)
+            pixels: drawBrush(state.pixels, state.lastPoint, payload, brush, state.fill)
         }
     }
 
@@ -145,13 +160,13 @@ function reducer (state, type, payload) {
 
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         return {
-            pixels: setRectangle(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.pattern)
+            pixels: setRectangle(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.fill)
         }
     }
 
     if (state.tool === "ellipse" && state.startPoint && type === "drag") {
         return {
-            pixels: setEllipse(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.pattern)
+            pixels: setEllipse(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.fill)
         }
     }
 
@@ -166,7 +181,7 @@ function reducer (state, type, payload) {
     if (state.tool === "bucket" && type === "down") {
         return {
             undoBuffer: state.pixels,
-            pixels: setFill(copy(state.pixels), payload, state.pattern)
+            pixels: setFill(copy(state.pixels), payload, state.fill)
         }
     }
 }
@@ -195,13 +210,41 @@ function EditActions ({ dispatch }) {
     )
 }
 
+function hex (num) {
+    return num.toString(16).padStart(2, "0")
+}
+
+function formatValue (obj) {
+    return `#${hex(obj.r)}${hex(obj.g)}${hex(obj.b)}`
+}
+
+function unformatValue (str) {
+    const num = Number(str.replace("#","0x"))
+    return {
+        r: (num & 0xFF0000) >> 16,
+        g: (num & 0x00FF00) >> 8,
+        b: (num & 0x0000FF),
+    }
+}
+
+function ColorPicker ({ value, onChange }) {
+    return (
+        <input type="color" value={formatValue(value)}
+            onChange={(e) => onChange(unformatValue(e.target.value))} />
+    )
+}
+
+// function ColorRadio ({ foreground, background, dispatch, colors }) {
+//
+// }
+
 class App extends Component {
     state = initState
     dispatch = (type, payload) => {
         this.setState((state) => reducer(state, type, payload) || {})
     }
     render() {
-        const { pixels, tool, brush, pattern, scale, palette } = this.state
+        const { pixels, tool, brush, fill, scale, palette } = this.state
 
         return (
             <Flex>
@@ -216,13 +259,20 @@ class App extends Component {
                     <Tools selected={tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
+                    <div>
+                        <h3>colors</h3>
+                        <div>{palette.colors.map((color, i) =>
+                            <ColorPicker key={i}
+                                value={color}
+                                onChange={(value) => this.dispatch("setColor", { color: value, index: i})}/>
+                        )}</div>
+                    </div>
                     <Brushes selected={brush}
                         dispatch={this.dispatch}
                         scale={scale}
                         brushes={brushes}/>
-                    <Patterns selected={pattern}
+                    <Patterns selected={fill}
                         dispatch={this.dispatch}
-                        patterns={patterns}
                         palette={palette}
                         scale={scale}/>
                     <EditActions dispatch={this.dispatch} />

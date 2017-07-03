@@ -24,12 +24,12 @@ export function createPattern (arr) {
     const width = arr[0].length
     const logW = fastLog(width)
     const logH = fastLog(height)
-    const data = Uint8Array.from(arr.reduce((l, r) => l.concat(r)))
+    const data = Uint16Array.from(arr.reduce((l, r) => l.concat(r)))
     return { height, width, data, logW, logH }
 }
 
 export function createBuffer (width, height) {
-    const data = new Uint8Array(height * width)
+    const data = new Uint16Array(height * width)
     const logW = fastLog(width)
     const logH = fastLog(height)
     return { width, height, data, logW, logH }
@@ -78,7 +78,7 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
             imageData.data[i] = px.r
             imageData.data[i + 1] = px.g
             imageData.data[i + 2] = px.b
-            imageData.data[i + 3] = px.a
+            imageData.data[i + 3] = 255
         }
     } else {
         for (let i = 0; i < ln; i += 4) {
