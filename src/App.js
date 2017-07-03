@@ -4,7 +4,8 @@ import "./App.css"
 import { colors, tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
 import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
-import Palette, { setForeground, setBackground, setPattern } from "./palette"
+import Palette, { createFillPattern } from "./palette"
+import Color , {unformatValue} from "./Color"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
@@ -24,19 +25,18 @@ const initState = {
     height: size,
     scale: 1,
     tool: "brush",
-    brush: 3,
-    fill: 0b1001,
+    brush: 6,
+    fill: createFillPattern(0, { foreground: 1, background: 0, }),
     undoBuffer: createBuffer(size, size),
     pixels: createBuffer(size, size),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
     palette: new Palette({
-        colors: [black, amber, white, navy],
+        colors: [white, black, amber, navy],
         patterns,
     })
 }
-
 
 function reducer (state, type, payload) {
     const brush = brushes[state.brush]
@@ -50,7 +50,7 @@ function reducer (state, type, payload) {
     if (type === "selectBrush") {
         return { brush: payload }
     }
-    if (type === "selectPattern") {
+    if (type === "setFill") {
         return {
             fill: payload,
         }
@@ -88,7 +88,19 @@ function reducer (state, type, payload) {
         return { fillShapes: !state.fillShapes }
     }
 
-    if (type === "setColor") {
+    if (type === "selectForegroundColor") {
+        return {
+            fill: createFillPattern(state.fill, { foreground: payload })
+        }
+    }
+
+    if (type === "selectBackgroundColor") {
+        return {
+            fill: createFillPattern(state.fill, { background: payload })
+        }
+    }
+
+    if (type === "setColorValue") {
         const { color, index } = payload
 
         state.palette.colors[index] = color
@@ -96,6 +108,13 @@ function reducer (state, type, payload) {
             palette: state.palette,
         }
     }
+
+    if (type === "toggleRoll") {
+        return {
+            fill: createFillPattern(state.fill, { roll: {[payload]: true } })
+        }
+    }
+
 
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
@@ -210,34 +229,6 @@ function EditActions ({ dispatch }) {
     )
 }
 
-function hex (num) {
-    return num.toString(16).padStart(2, "0")
-}
-
-function formatValue (obj) {
-    return `#${hex(obj.r)}${hex(obj.g)}${hex(obj.b)}`
-}
-
-function unformatValue (str) {
-    const num = Number(str.replace("#","0x"))
-    return {
-        r: (num & 0xFF0000) >> 16,
-        g: (num & 0x00FF00) >> 8,
-        b: (num & 0x0000FF),
-    }
-}
-
-function ColorPicker ({ value, onChange }) {
-    return (
-        <input type="color" value={formatValue(value)}
-            onChange={(e) => onChange(unformatValue(e.target.value))} />
-    )
-}
-
-// function ColorRadio ({ foreground, background, dispatch, colors }) {
-//
-// }
-
 class App extends Component {
     state = initState
     dispatch = (type, payload) => {
@@ -245,7 +236,6 @@ class App extends Component {
     }
     render() {
         const { pixels, tool, brush, fill, scale, palette } = this.state
-
         return (
             <Flex>
                 <div>
@@ -254,19 +244,23 @@ class App extends Component {
                         palette={palette}
                         dispatch={this.dispatch}
                         scale={scale} />
+                    <div>
+                        <h3>animations</h3>
+                        <div>
+                            <button onClick={() => this.dispatch("toggleRoll", "left")}>⬅️</button>
+                            <button onClick={() => this.dispatch("toggleRoll", "right")}>➡️</button>
+                            <button onClick={() => this.dispatch("toggleRoll", "up")}>⬆️</button>
+                            <button onClick={() => this.dispatch("toggleRoll", "down")}>⬇️</button>
+                        </div>
+                    </div>
                 </div>
                 <div className="right">
                     <Tools selected={tool}
                         dispatch={this.dispatch}
                         tools={tools}/>
-                    <div>
-                        <h3>colors</h3>
-                        <div>{palette.colors.map((color, i) =>
-                            <ColorPicker key={i}
-                                value={color}
-                                onChange={(value) => this.dispatch("setColor", { color: value, index: i})}/>
-                        )}</div>
-                    </div>
+                    <Color fill={fill}
+                        dispatch={this.dispatch}
+                        palette={palette} />
                     <Brushes selected={brush}
                         dispatch={this.dispatch}
                         scale={scale}
@@ -282,6 +276,7 @@ class App extends Component {
                             {this.state.fillShapes ? "filled" : "empty"}
                         </button>
                     </div>
+
                 </div>
             </Flex>
         )

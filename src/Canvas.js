@@ -24,13 +24,15 @@ export default class Canvas extends Component {
         return false
     }
     initRef = (e) => {
+        if (!e) { return }
         this._ref = e
         this.ctx = e.getContext("2d")
     }
     renderCanvas = () => {
         this.frame++
         const { scale, palette } = this.props
-        setImageData(this.ctx, this.props.pixels, scale, this.frame, palette)
+        const data = setImageData(this.ctx, this.props.pixels, scale, this.frame, palette)
+        this.ctx.putImageData(data,0,0)
         requestAnimationFrame(this.renderCanvas)
     }
     getPoint = (e) => {

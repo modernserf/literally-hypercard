@@ -37,7 +37,7 @@ export default function Patterns ({ dispatch, palette, selected, scale }) {
                 <li key={fill}>
                     <PatternButton selected={selected === fill}
                         onClick={() => dispatch("setFill", fill)}>
-                        <Icon pixels={fillPattern(fill, 16, 16)}
+                        <Icon pixels={fillPattern(fill, 16, 8)}
                             palette={palette}
                             scale={scale}/>
                     </PatternButton>

@@ -1,8 +1,6 @@
-import { colors } from "./config"
-
 // buffer getter/setters
 export function getPixel (buffer, x, y) {
-    if (x < 0 || y < 0 || x >= buffer.width || y >= buffer.height) { return colors.transparent }
+    if (x < 0 || y < 0 || x >= buffer.width || y >= buffer.height) { return 0 }
     return buffer.data[x + y * buffer.width]
 }
 
@@ -93,11 +91,9 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
                 imageData.data[i + 3] = 255
             }
         }
-
     }
 
-
-    ctx.putImageData(imageData, 0, 0)
+    return imageData
 }
 
 export function flipHorizontal (buffer) {
