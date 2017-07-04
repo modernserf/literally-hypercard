@@ -63,6 +63,37 @@ export const brushes = [
     ],
 ].map(createPattern)
 
+
+function tileOffset (tile) {
+    const x = tile < 0 ? -tile : 0
+    const y = tile > 0 ? tile : 0
+    return { x, y }
+}
+
+// xFreq / yFreq : 2 4 8
+// tile: -7 -- 7
+// pixels: 8x8
+
+
+function genPattern (pixels, { xFreq, yFreq, tile }) {
+    const t = tileOffset(tile)
+
+    const out = []
+    for (let y = 0; y < 8; y++) {
+        const yBlock = y / yFreq | 0
+        const yOffset = yBlock * t.y
+        const row = []
+        for (let x = 0; x < 8; x++) {
+            const xBlock = x / xFreq | 0
+            const xOffset = xBlock * t.x
+            const px = pixels[y][x]
+            row.push(px)
+        }
+        out.push(row)
+    }
+    return out
+}
+
 export const patterns = [
     [
         [X,X,X,X,X,X,X,X],
@@ -73,6 +104,16 @@ export const patterns = [
         [X,X,X,X,X,X,X,X],
         [X,X,X,X,X,X,X,X],
         [X,X,X,X,X,X,X,X],
+    ],
+    [
+        [X,_,X,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_],
     ],
     [
         [X,_,_,_, _,_,_,_],

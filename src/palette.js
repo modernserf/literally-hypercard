@@ -133,8 +133,8 @@ export default class Palette {
         if (colorID < 512) {
             const patternPx = this._patternBuffer[
                 (patternID << 6) + // 64px pattern offset
-                ((x & 7) << 3) + // 8px row offset
-                (y & 7)
+                (x & 7) +
+                ((y & 7) << 3) // 8px row offset
             ]
             return patternPx ? fgColor : bgColor
         }
@@ -152,8 +152,8 @@ export default class Palette {
 
             const patternPx = this._patternBuffer[
                 (patternID << 6) +
-                (((x + offsetX) & 7) << 3) +
-                ((y + offsetY) & 7)
+                ((x + offsetX) & 7) +
+                (((y + offsetY) & 7) << 3)
             ]
             return patternPx ? fgColor : bgColor
         }
@@ -166,8 +166,8 @@ export default class Palette {
 
             const patternPx = this._patternBuffer[
                 (patternID << 6) +
-                ((x & 7) << 3) +
-                (y & 7)
+                (x & 7) +
+                ((y & 7) << 3)
             ]
 
             if (patternPx) {
