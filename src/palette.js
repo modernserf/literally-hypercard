@@ -1,5 +1,3 @@
-import { getPixel } from "./buffer"
-
 export function createFillPattern (fill, params) {
     if ("foreground" in params) {
         fill = (fill & ~0b11) + params.foreground
@@ -66,6 +64,16 @@ export function parseFillPattern (fill) {
     return params
 }
 
+function concatPatterns(patterns) {
+    const arr = new Uint8Array(patterns.length * 64)
+    for (let p = 0; p < patterns.length; p++) {
+        for (let i = 0; i < 64; i++) {
+            arr[i + (p * 64)] = patterns[p].data[i]
+        }
+    }
+    return arr
+}
+
 
 export default class Palette {
     constructor ({
@@ -74,6 +82,7 @@ export default class Palette {
     }) {
         this.colors = colors
         this.patterns = patterns
+        this._patternBuffer = concatPatterns(patterns)
     }
     getPatterns (fill) {
         return this.patterns.map((_, i) => createFillPattern(fill, { pattern: i }))
@@ -109,7 +118,7 @@ export default class Palette {
     // aaa = pattern 2 offset (2s comp)
     // bbb = pattern 3 offset (2s comp)
     getPixel (buffer, x, y, frame) {
-        const colorID = getPixel(buffer, x, y)
+        const colorID = buffer.data[x + y * buffer.width]
         const fgID = colorID & 0b11
         const fgColor = this.colors[fgID]
         // solid color
@@ -119,11 +128,15 @@ export default class Palette {
         const bgColor = this.colors[bgID ^ fgID]
 
         const patternID = (colorID >> 4) & 0b11111
-        const pattern = this.patterns[patternID]
 
         // stationary pattern
         if (colorID < 512) {
-            return getPixel(pattern, x & 7, y & 7) ? fgColor : bgColor
+            const patternPx = this._patternBuffer[
+                (patternID << 6) + // 64px pattern offset
+                ((x & 7) << 3) + // 8px row offset
+                (y & 7)
+            ]
+            return patternPx ? fgColor : bgColor
         }
 
         // rolling patterns
@@ -136,7 +149,13 @@ export default class Palette {
             // TODO: alternating directions
             const offsetX = rollRight ? -f : rollLeft ? f : 0
             const offsetY = rollDown ? -f : rollUp ? f : 0
-            return getPixel(pattern, (x + offsetX) & 7, (y + offsetY) & 7) ? fgColor : bgColor
+
+            const patternPx = this._patternBuffer[
+                (patternID << 6) +
+                (((x + offsetX) & 7) << 3) +
+                ((y + offsetY) & 7)
+            ]
+            return patternPx ? fgColor : bgColor
         }
 
         // color cycles
@@ -144,7 +163,14 @@ export default class Palette {
             const c1 = this.colors[((colorID >> 13) & 0b11) ^ fgID]
             const c2 = this.colors[((colorID >> 11) & 0b11) ^ fgID]
             const c3 = this.colors[((colorID >> 9) & 0b11) ^ fgID]
-            if (getPixel(pattern, x & 7, y & 7)) {
+
+            const patternPx = this._patternBuffer[
+                (patternID << 6) +
+                ((x & 7) << 3) +
+                (y & 7)
+            ]
+
+            if (patternPx) {
                 switch ((frame >> 2) & 7) {
                 case 0:
                     return fgColor
@@ -171,11 +197,13 @@ export default class Palette {
         // pattern wavetable
         const target = (patternID + 1 + (colorID >> 12) & 0b111) & 31
         const interpolateWith = (patternID + (colorID >> 9) & 0b111) & 31
-        const dX = x & 7
+        const dX = (x & 7) << 3
         const dY = y & 7
-        const px0 = getPixel(pattern, dX, dY) ? fgColor : bgColor
-        const px1 = getPixel(this.patterns[target], dX, dY) ? fgColor : bgColor
-        const inter = getPixel(this.patterns[interpolateWith], dX, dY)
+
+        const px0 = this._patternBuffer[(patternID << 6) + dX + dY] ? fgColor  : bgColor
+        const px1 = this._patternBuffer[(target << 6) + dX + dY] ? fgColor  : bgColor
+        const inter = this._patternBuffer[(interpolateWith << 6) + dX + dY] ? fgColor  : bgColor
+
         switch ((frame >> 3) & 3) {
         case 0:
             return px0
