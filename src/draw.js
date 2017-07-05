@@ -1,6 +1,6 @@
 import floodFillScanline from "./floodFillScanline"
 import bresenham from "bresenham"
-import { createPattern, getPixel, setPixel, getWidth, getHeight, copy } from "./buffer"
+import { getPixel, setPixel, getWidth, getHeight, copy } from "./buffer"
 
 export function drawPencil (buffer, { start, end, stroke }) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
@@ -137,19 +137,23 @@ export function drawEllipse (buffer, { start, end, isFilled, stroke, fill, brush
 export function drawFill (buffer, { point, fill, pattern }) {
     const width = getWidth(buffer)
     const height = getHeight(buffer)
-    const fillTest = copy(buffer)
     const matchColor = getPixel(buffer, point.x, point.y)
-    if (fill === matchColor & 0b11) { return buffer }
+    const fillTest = copy(buffer)
+
+    for (let i = 0; i < fillTest.data.length; i++) {
+        fillTest.data[i] ^= matchColor
+    }
 
     const test = (x, y) => {
         if (x < 0 || y < 0 || x >= width || y >= height) { return false }
-        const px = getPixel(fillTest, x, y)
-        return px === matchColor
+        return !getPixel(fillTest, x, y)
     }
     const paint = (x, y) => {
-        setPixel(fillTest, x, y, fill)
+        setPixel(fillTest, x, y, 1)
         if (getPixel(pattern, x & 7, y & 7)) {
             setPixel(buffer, x, y, fill)
+        } else if ((getPixel(buffer, x, y) & 0b11) === fill) {
+            setPixel(buffer, x, y, 0)
         }
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)

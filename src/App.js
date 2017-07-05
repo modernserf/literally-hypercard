@@ -232,6 +232,7 @@ function reducer (state, type, payload) {
 
 const Flex = styled.div`
     display: flex;
+    flex-wrap: wrap;
     .right {
         margin-left: 1em;
     }
