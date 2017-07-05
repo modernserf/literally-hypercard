@@ -1,5 +1,7 @@
 import React, { Component } from "react"
 import styled from "styled-components"
+import localForage from "localforage"
+import debounce from "debounce"
 import "./App.css"
 import { colors, tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
@@ -21,6 +23,8 @@ const black = unformatValue("#000000")
 const navy = unformatValue("#333366")
 const amber = unformatValue("#CC9900")
 
+const stateKey = "literally-hypercard/v1"
+
 const initState = {
     width: size,
     height: size,
@@ -37,6 +41,18 @@ const initState = {
         colors: [white, black, amber, navy],
         patterns,
     })
+}
+
+function serialize (state) {
+    return state
+}
+
+function deserialize (state) {
+    return {
+        ...state,
+        palette: new Palette(state.palette),
+        empty: false,
+    }
 }
 
 function reducer (state, type, payload) {
@@ -238,11 +254,22 @@ function EditActions ({ dispatch }) {
 }
 
 class App extends Component {
-    state = initState
+    state = { empty: true }
+    constructor () {
+        super()
+        localForage.getItem(stateKey).then((state) => {
+            this.setState(state ? deserialize(state) : initState)
+        })
+    }
+    saveState = debounce(() => {
+        localForage.setItem(stateKey, serialize(this.state))
+    }, 1000)
     dispatch = (type, payload) => {
         this.setState((state) => reducer(state, type, payload) || {})
+        this.saveState()
     }
     render() {
+        if (this.state.empty) { return null }
         const { pixels, tool, brush, fill, scale, palette } = this.state
         return (
             <Flex>
