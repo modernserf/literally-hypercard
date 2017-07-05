@@ -120,9 +120,9 @@ function reducer (state, type, payload) {
     if (type === "setColorValue") {
         const { color, index } = payload
 
-        state.palette.colors[index] = color
+        state.colors[index] = color
         return {
-            palette: state.palette,
+            colors: state.colors,
         }
     }
 
@@ -276,11 +276,20 @@ class App extends Component {
         return (
             <Flex>
                 <div>
-                    <Canvas pixels={pixels}
-                        patterns={patterns}
-                        colors={colors}
-                        dispatch={this.dispatch}
-                        scale={scale} />
+                    <div>
+                        <Canvas pixels={pixels}
+                            patterns={patterns}
+                            colors={colors}
+                            dispatch={this.dispatch}
+                            scale={scale} />
+                    </div>
+                    <div>
+                        <Canvas pixels={pixels}
+                            patterns={patterns}
+                            colors={colors}
+                            dispatch={this.dispatch}
+                            scale={0} />
+                    </div>
                 </div>
                 <div className="right">
                     <Tools selected={tool}
