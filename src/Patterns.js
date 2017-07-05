@@ -13,14 +13,17 @@ const Grid = styled.ul`
 const PatternButton = styled.button`
     appearance: none;
     display: block;
-    padding: 1px;
+    padding: 2px;
     margin: 0;
     width: 100%;
     height: 100%;
     background-color: white;
     border-radius: none;
-    border: ${({ selected }) =>  selected ? "1px solid black" : "1px solid #ccc"};
+    border: ${({ selected }) =>  selected ? "2px solid black" : "2px solid #eee"};
     line-height: 0;
+    :focus {
+        outline: none;
+    }
 `
 
 function fillPattern (value, width, height) {
@@ -37,7 +40,7 @@ export default function Patterns ({ dispatch, palette, selected, scale }) {
                 <li key={fill}>
                     <PatternButton selected={selected === fill}
                         onClick={() => dispatch("setFill", fill)}>
-                        <Icon pixels={fillPattern(fill, 16, 8)}
+                        <Icon pixels={fillPattern(fill, 16, 16)}
                             palette={palette}
                             scale={scale}/>
                     </PatternButton>
