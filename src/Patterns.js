@@ -1,7 +1,7 @@
 import React from "react"
 import styled from "styled-components"
 import Icon from "./Icon"
-import { createBuffer, fillBuffer } from "./buffer"
+import { createBuffer, setPixel, getPixel } from "./buffer"
 
 const Grid = styled.ul`
     display: grid;
@@ -25,23 +25,26 @@ const PatternButton = styled.button`
         outline: none;
     }
 `
-
-function fillPattern (value, width, height) {
+// TODO
+function fillPattern (pattern, width, height) {
     const buf = createBuffer(width, height)
-    fillBuffer(buf, value)
+    for (let y = 0; y < width; y++) {
+        for (let x = 0; x < height; x++) {
+            setPixel(buf, x, y, getPixel(pattern, x & 7, y & 7))
+        }
+    }
     return buf
 }
 
-export default function Patterns ({ dispatch, palette, selected, scale }) {
+export default function Patterns ({ dispatch, patterns, selected, scale }) {
     return (
         <div>
             <h3>patterns</h3>
-            <Grid>{palette.getPatterns(selected).map((fill) => (
-                <li key={fill}>
-                    <PatternButton selected={selected === fill}
-                        onClick={() => dispatch("setFill", fill)}>
-                        <Icon pixels={fillPattern(fill, 16, 16)}
-                            palette={palette}
+            <Grid>{patterns.map((pattern, i) => (
+                <li key={i}>
+                    <PatternButton selected={selected === i}
+                        onClick={() => dispatch("setPattern", i)}>
+                        <Icon pixels={fillPattern(pattern, 16, 16)}
                             scale={scale}/>
                     </PatternButton>
                 </li>

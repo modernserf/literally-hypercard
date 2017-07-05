@@ -3,44 +3,43 @@ import styled from "styled-components"
 import localForage from "localforage"
 import debounce from "debounce"
 import "./App.css"
-import { colors, tools, editActions } from "./config"
+import { tools, editActions } from "./config"
 import { brushes, patterns } from "./resources"
-import { getPixel, createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
-import Palette, { createFillPattern } from "./palette"
-import AnimationControls from "./AnimationControls"
-import Color , {unformatValue} from "./Color"
+import { createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
+import { hexToColor } from "./palette"
+import Color  from "./Color"
 import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
 import Tools from "./Tools"
 
-import { drawBrush, drawPencil, setRectangle, erase, drawLine, setEllipse, setFill } from "./draw"
+import { drawBrush, drawPencil, drawRectangle, erase, drawLine, drawEllipse, drawFill } from "./draw"
 
 const size = 256
 
-const white = unformatValue("#FFFFFF")
-const black = unformatValue("#000000")
-const navy = unformatValue("#333366")
-const amber = unformatValue("#CC9900")
+const white = hexToColor("#FFFFFF")
+const black = hexToColor("#000000")
+const navy = hexToColor("#333366")
+const amber = hexToColor("#CC9900")
 
-const stateKey = "literally-hypercard/v1"
+const stateKey = "literally-hypercard/v2"
 
 const initState = {
+    empty: false,
     width: size,
     height: size,
     scale: 1,
     tool: "brush",
-    brush: 6,
-    fill: createFillPattern(0, { foreground: 1, background: 0, }),
+    brush: 0,
+    fill: 1,
+    stroke: 1,
+    pattern: 0,
     undoBuffer: createBuffer(size, size),
     pixels: createBuffer(size, size),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
-    palette: new Palette({
-        colors: [white, black, amber, navy],
-        patterns,
-    })
+    colors: [white, black, amber, navy],
 }
 
 function serialize (state) {
@@ -50,13 +49,13 @@ function serialize (state) {
 function deserialize (state) {
     return {
         ...state,
-        palette: new Palette(state.palette),
         empty: false,
     }
 }
 
 function reducer (state, type, payload) {
     const brush = brushes[state.brush]
+    const pattern = patterns[state.pattern]
 
     // set tools
     if (type === "selectTool") {
@@ -66,11 +65,6 @@ function reducer (state, type, payload) {
     }
     if (type === "selectBrush") {
         return { brush: payload }
-    }
-    if (type === "setFill") {
-        return {
-            fill: payload,
-        }
     }
 
     if (type === "undo") {
@@ -105,10 +99,21 @@ function reducer (state, type, payload) {
         return { fillShapes: !state.fillShapes }
     }
 
-    if (type === "selectColors") {
-        const { foreground, background } = payload
+    if (type === "setFill") {
         return {
-            fill: createFillPattern(state.fill, { foreground, background })
+            fill: payload,
+        }
+    }
+
+    if (type === "setStroke") {
+        return {
+            stroke: payload,
+        }
+    }
+
+    if (type === "setPattern") {
+        return {
+            pattern: payload,
         }
     }
 
@@ -121,42 +126,22 @@ function reducer (state, type, payload) {
         }
     }
 
-    if (type === "setRoll") {
-        return {
-            fill: createFillPattern(state.fill, { roll: payload })
-        }
-    }
-
-    if (type === "setColorCycle") {
-        return {
-            fill: createFillPattern(state.fill, { colors: payload })
-        }
-    }
-
-    if (type === "setPatternCycle") {
-        return {
-            fill: createFillPattern(state.fill, { patterns: payload })
-        }
-    }
-
-
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
-        // TODO: what _should_ pencil do?
-        const value = getPixel(state.pixels, payload.x, payload.y) ?
-            colors.white :
-            colors.black
+        // TODO: how should "erasing" work?
+        // const value = getPixel(state.pixels, payload.x, payload.y) ? 0 : state.stroke
+        const value = state.stroke
         return {
             lastPoint: payload,
             pencilValue: value,
             undoBuffer: state.pixels,
-            pixels: drawPencil(copy(state.pixels), payload, null, value)
+            pixels: drawPencil(copy(state.pixels), { start: payload, stroke: value })
         }
     }
     if (state.tool === "pencil" && type === "drag") {
         return {
             lastPoint: payload,
-            pixels: drawPencil(state.pixels, state.lastPoint, payload, state.pencilValue),
+            pixels: drawPencil(state.pixels, { start: state.lastPoint, end: payload, stroke: state.pencilValue }),
         }
     }
 
@@ -164,13 +149,14 @@ function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             undoBuffer: state.pixels,
-            pixels: drawBrush(copy(state.pixels), payload, null, brush, state.fill)
+            pixels: drawBrush(copy(state.pixels), {start: payload, brush, fill: state.fill, pattern})
         }
     }
     if (state.tool === "brush" && type === "drag") {
         return {
             lastPoint: payload,
-            pixels: drawBrush(state.pixels, state.lastPoint, payload, brush, state.fill)
+            pixels: drawBrush(state.pixels,
+                {start: state.lastPoint, end: payload, brush, fill: state.fill, pattern})
         }
     }
 
@@ -178,13 +164,13 @@ function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             undoBuffer: state.pixels,
-            pixels: erase(copy(state.pixels), payload, null, brush)
+            pixels: erase(copy(state.pixels), { start: payload, brush })
         }
     }
     if (state.tool === "eraser" && type === "drag") {
         return {
             lastPoint: payload,
-            pixels: erase(state.pixels, state.lastPoint, payload, brush)
+            pixels: erase(state.pixels, {start: state.lastPoint, end: payload, brush })
         }
     }
 
@@ -197,19 +183,34 @@ function reducer (state, type, payload) {
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
         return {
-            pixels: drawLine(copy(state.undoBuffer), state.startPoint, payload, brush)
+            pixels: drawLine(copy(state.undoBuffer),
+                { start: state.startPoint, end: payload, brush, stroke: state.stroke})
         }
     }
 
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         return {
-            pixels: setRectangle(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.fill)
+            pixels: drawRectangle(copy(state.undoBuffer), {
+                start: state.startPoint,
+                end: payload,
+                isFilled: state.fillShapes,
+                brush,
+                stroke: state.stroke,
+                fill: state.fill
+            })
         }
     }
 
     if (state.tool === "ellipse" && state.startPoint && type === "drag") {
         return {
-            pixels: setEllipse(copy(state.undoBuffer), state.startPoint, payload, state.fillShapes && state.fill)
+            pixels: drawEllipse(copy(state.undoBuffer), {
+                start: state.startPoint,
+                end: payload,
+                isFilled: state.fillShapes,
+                brush,
+                stroke: state.stroke,
+                fill: state.fill
+            })
         }
     }
 
@@ -224,7 +225,7 @@ function reducer (state, type, payload) {
     if (state.tool === "bucket" && type === "down") {
         return {
             undoBuffer: state.pixels,
-            pixels: setFill(copy(state.pixels), payload, state.fill)
+            pixels: drawFill(copy(state.pixels), { point: payload, fill: state.fill, pattern })
         }
     }
 }
@@ -270,18 +271,15 @@ class App extends Component {
     }
     render() {
         if (this.state.empty) { return null }
-        const { pixels, tool, brush, fill, scale, palette } = this.state
+        const { pixels, tool, brush, fill, stroke, scale, colors, pattern } = this.state
         return (
             <Flex>
                 <div>
                     <Canvas pixels={pixels}
                         patterns={patterns}
-                        palette={palette}
+                        colors={colors}
                         dispatch={this.dispatch}
                         scale={scale} />
-                    <AnimationControls fill={fill}
-                        palette={palette}
-                        dispatch={this.dispatch} />
                 </div>
                 <div className="right">
                     <Tools selected={tool}
@@ -300,12 +298,12 @@ class App extends Component {
                     </div>
                 </div>
                 <div className="right">
-                    <Color fill={fill}
+                    <Color fill={fill} stroke={stroke}
                         dispatch={this.dispatch}
-                        palette={palette} />
-                    <Patterns selected={fill}
+                        colors={colors} />
+                    <Patterns selected={pattern}
                         dispatch={this.dispatch}
-                        palette={palette}
+                        patterns={patterns}
                         scale={scale}/>
                 </div>
             </Flex>

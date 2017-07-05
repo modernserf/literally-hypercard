@@ -1,4 +1,4 @@
-import { createPattern } from "./buffer"
+import { createPattern, createBrush } from "./buffer"
 
 const X = 1
 const _ = 0
@@ -18,22 +18,58 @@ export const brushes = [
         [X,X,X,X],
     ],
     [
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X],
+    ],
+    [
+        [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
+        [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
+    ],
+    [
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+    ],
+    [
         [_,X,X,_],
         [X,X,X,X],
         [X,X,X,X],
         [_,X,X,_]
     ],
     [
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-        [X,X,X,X,X,X,X,X],
-    ],
-    [
         [_,_,_,X,X,_,_,_],
         [_,X,X,X,X,X,X,_],
         [_,X,X,X,X,X,X,_],
@@ -61,7 +97,25 @@ export const brushes = [
         [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
         [_,_,_,_,_,_,_,_,_,_,_,_,_,_,_,_],
     ],
-].map(createPattern)
+    [
+        [_,_,_,_,_,X,X,X,X,X,X,_,_,_,_,_],
+        [_,_,_,X,X,X,X,X,X,X,X,X,X,_,_,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,X,X,X,X,X,X,X,X,X,X,X,X,X,X,_],
+        [_,X,X,X,X,X,X,X,X,X,X,X,X,X,X,_],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [X,X,X,X,X,X,X,X,X,X,X,X,X,X,X,X],
+        [_,X,X,X,X,X,X,X,X,X,X,X,X,X,X,_],
+        [_,X,X,X,X,X,X,X,X,X,X,X,X,X,X,_],
+        [_,_,X,X,X,X,X,X,X,X,X,X,X,X,_,_],
+        [_,_,_,X,X,X,X,X,X,X,X,X,X,_,_,_],
+        [_,_,_,_,_,X,X,X,X,X,X,_,_,_,_,_],
+    ],
+].map(createBrush)
 
 
 function tileOffset (tile) {
@@ -86,7 +140,7 @@ function genPattern (pixels, { xFreq = 1, yFreq = 1, tile = 0 } = {}) {
                         (y + (yBlock * yFreq) + (t.y * xBlock)) & 7
                     ][
                         (x + (xBlock * xFreq) + (t.x * yBlock)) & 7
-                    ] = pixels[y] && pixels[y][x] || 0
+                    ] = (pixels[y] && pixels[y][x]) || 0
                 }
             }
         }

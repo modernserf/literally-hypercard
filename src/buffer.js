@@ -6,6 +6,11 @@ export function getPixel (buffer, x, y) {
 
 export function setPixel (buffer, x, y, value) {
     if (x < 0 || y < 0 || x >= buffer.width || y >= buffer.height) { return }
+    // set value at every frame
+    buffer.data[x + y * buffer.width] = value * 0b0101010101010101
+}
+
+function rawSetPixel (buffer, x, y, value) {
     buffer.data[x + y * buffer.width] = value
 }
 
@@ -17,11 +22,20 @@ export function getHeight (buffer) {
     return buffer.height
 }
 
-export function createPattern (arr) {
+export function createBrush (arr) {
     const height = arr.length
     const width = arr[0].length
     const logW = fastLog(width)
     const logH = fastLog(height)
+    const data = Uint16Array.from(arr.reduce((l, r) => l.concat(r)))
+    return { height, width, data, logW, logH }
+}
+
+export function createPattern (arr) {
+    const height = 8
+    const width = 8
+    const logW = 3
+    const logH = 3
     const data = Uint16Array.from(arr.reduce((l, r) => l.concat(r)))
     return { height, width, data, logW, logH }
 }
@@ -55,7 +69,14 @@ function fastLog(n) {
     return Math.log2(n) | 0
 }
 
-export function setImageData (ctx, buffer, scale, frame, palette) {
+export function getFramePixel(buffer, x, y, frame) {
+    const data = buffer.data[x + y * buffer.width]
+    // frame = (frame % 8) * 2
+    frame = (frame & 7) << 1
+    return (data >> frame) & 0b11
+}
+
+export function setImageData (ctx, buffer, scale, frame, colors) {
     const w = buffer.width
     const h = buffer.height
     const logW = buffer.logW
@@ -68,11 +89,12 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
     // a % b => a & b - 1
     const xScale = (1 << logW + scale - 1) - 1
 
-    if (palette) {
+    if (colors) {
         for (let i = 0; i < ln; i += 8) {
             const y = i >> yScale
             const x = (i >> 2 >> scale) & xScale
-            const px = palette.getPixel(buffer, x, y, frame)
+            const colorID = getFramePixel(buffer, x, y, frame)
+            const px = colors[colorID]
             imageData.data[i] = px.r
             imageData.data[i + 1] = px.g
             imageData.data[i + 2] = px.b
@@ -93,10 +115,6 @@ export function setImageData (ctx, buffer, scale, frame, palette) {
                 imageData.data[i + 1] = 0
                 imageData.data[i + 2] = 0
                 imageData.data[i + 3] = 255
-                imageData.data[i+ 4] = 0
-                imageData.data[i + 5] = 0
-                imageData.data[i + 2] = 0
-                imageData.data[i + 3] = 255
             }
         }
     }
@@ -111,7 +129,7 @@ export function flipHorizontal (buffer) {
 
     for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-            setPixel(out,
+            rawSetPixel(out,
                 w - x,
                 y,
                 getPixel(buffer, x, y))
@@ -127,7 +145,7 @@ export function flipVertical (buffer) {
 
     for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-            setPixel(out,
+            rawSetPixel(out,
                 x,
                 h - y,
                 getPixel(buffer, x, y))

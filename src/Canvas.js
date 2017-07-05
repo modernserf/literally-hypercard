@@ -7,7 +7,7 @@ export default class Canvas extends Component {
         pixels: PropTypes.object.isRequired,
         dispatch: PropTypes.func.isRequired,
         scale: PropTypes.number.isRequired,
-        palette: PropTypes.object.isRequired,
+        colors: PropTypes.array.isRequired,
     }
     state = {
         mouseDown: false,
@@ -30,8 +30,8 @@ export default class Canvas extends Component {
     }
     renderCanvas = () => {
         this.frame++
-        const { scale, palette } = this.props
-        const data = setImageData(this.ctx, this.props.pixels, scale, this.frame, palette)
+        const { scale, colors } = this.props
+        const data = setImageData(this.ctx, this.props.pixels, scale, this.frame, colors)
         this.ctx.putImageData(data,0,0)
         requestAnimationFrame(this.renderCanvas)
     }
