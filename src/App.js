@@ -10,7 +10,6 @@ import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
 import Tools from "./Tools"
-import PatternEditor from "./PatternEditor"
 import { reducer, initState } from "./state"
 
 const stateKey = "literally-hypercard/v2"
@@ -22,6 +21,7 @@ function serialize (state) {
 function deserialize (state) {
     return {
         ...state,
+        patterns: initState.patterns, 
         empty: false,
     }
 }
@@ -103,11 +103,6 @@ class App extends Component {
                         dispatch={this.dispatch}
                         patterns={patterns}
                         scale={scale}/>
-                </div>
-                <div className="right">
-                    <PatternEditor id={pattern}
-                        pattern={patterns[pattern]}
-                        dispatch={this.dispatch} />
                 </div>
             </Flex>
         )

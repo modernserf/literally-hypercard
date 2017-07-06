@@ -1,4 +1,4 @@
-import { createPattern } from "./buffer"
+import { createBuffer, createPattern as createPatternBuffer, setPixel, getPixel } from "./buffer"
 
 function tileOffset (tile) {
     const x = tile < 0 ? -tile : 0
@@ -9,7 +9,7 @@ function tileOffset (tile) {
 // xFreq / yFreq : 2 4 8
 // tile: -7 -- 7
 // pixels: 8x8
-export function genPattern ({ pixels, xOffset = 0, yOffset = 0, xFreq = 1, yFreq = 1, tile = 0 }) {
+export function createPattern ({ pixels, xOffset = 0, yOffset = 0, xFreq = 1, yFreq = 1, tile = 0 }) {
     const t = tileOffset(tile)
 
     const out = new Array(8).fill(0).map(() => [])
@@ -28,5 +28,55 @@ export function genPattern ({ pixels, xOffset = 0, yOffset = 0, xFreq = 1, yFreq
         }
     }
 
-    return createPattern(out)
+    return createPatternBuffer(out)
+}
+
+export function rotateLeft (arr) {
+    const out = []
+    for (let y = 0; y < arr.length; y++) {
+        out.push(arr.map((row) => row[y]))
+    }
+    return out.reverse()
+}
+
+export function rotateRight (arr) {
+    const out = []
+    for (let y = 0; y < arr.length; y++) {
+        out.push(arr.map((row) => row[y]).reverse())
+    }
+    return out
+}
+
+export function flipHorizontal (arr) {
+    const out = []
+    for (let y = 0; y < arr.length; y++) {
+        out.push(arr[y].slice(0).reverse())
+    }
+    return out
+}
+
+export function flipVertical (arr) {
+    return arr.slice(0).reverse()
+}
+
+export function invert (arr) {
+    return arr.map((row) => row.map((x) => x ^ 1))
+}
+
+export function togglePixel (arr, point) {
+    const out = arr.map((r) => r.slice(0))
+    out[point.y][point.x] ^= 1
+    return out
+}
+
+// TODO
+export function fillPattern (pattern, width, height) {
+    const basePattern = createPattern(pattern)
+    const buf = createBuffer(width, height)
+    for (let y = 0; y < width; y++) {
+        for (let x = 0; x < height; x++) {
+            setPixel(buf, x, y, getPixel(basePattern, x & 7, y & 7))
+        }
+    }
+    return buf
 }

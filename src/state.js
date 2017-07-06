@@ -1,5 +1,5 @@
 import { brushes, patterns as basePatterns } from "./resources"
-import { genPattern } from "./pattern"
+import { createPattern } from "./pattern"
 import { createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
 import { hexToColor } from "./palette"
 
@@ -37,7 +37,7 @@ export const initState = {
 
 export function reducer (state, type, payload) {
     const brush = brushes[state.brush]
-    const pattern = genPattern(state.patterns[state.pattern])
+    const pattern = createPattern(state.patterns[state.pattern])
 
     // set tools
     if (type === "selectTool") {
