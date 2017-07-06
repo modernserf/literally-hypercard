@@ -21,7 +21,7 @@ function serialize (state) {
 function deserialize (state) {
     return {
         ...state,
-        patterns: initState.patterns, 
+        patterns: initState.patterns,
         empty: false,
     }
 }
@@ -78,6 +78,7 @@ class App extends Component {
                             dispatch={this.dispatch}
                             scale={scale} />
                     </div>
+                    <button onClick={() => this.dispatch("download")}>Download</button>
                 </div>
                 <div className="right">
                     <Tools selected={tool}

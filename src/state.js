@@ -1,6 +1,6 @@
 import { brushes, patterns as basePatterns } from "./resources"
 import { createPattern } from "./pattern"
-import { createBuffer, copy, flipHorizontal, flipVertical } from "./buffer"
+import { createBuffer, copy, flipHorizontal, flipVertical, setImageData } from "./buffer"
 import { hexToColor } from "./palette"
 
 import { drawBrush, drawPencil, drawRectangle, erase, drawLine, drawEllipse, drawFill } from "./draw"
@@ -216,5 +216,15 @@ export function reducer (state, type, payload) {
         return {
             patterns: state.patterns,
         }
+    }
+
+    if (type === "download") {
+        const canvas = document.createElement("canvas")
+        canvas.width = state.width << state.scale
+        canvas.height = state.height << state.scale
+        const ctx = canvas.getContext("2d")
+        setImageData(ctx, state.pixels, state.scale, 0, state.colors)
+        const url = canvas.toDataURL()
+        window.open(url, "_blank")
     }
 }
