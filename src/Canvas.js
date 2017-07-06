@@ -7,7 +7,7 @@ export default class Canvas extends Component {
         pixels: PropTypes.object.isRequired,
         dispatch: PropTypes.func.isRequired,
         scale: PropTypes.number.isRequired,
-        colors: PropTypes.array.isRequired,
+        colors: PropTypes.array,
     }
     state = {
         mouseDown: false,

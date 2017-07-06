@@ -1,6 +1,7 @@
 import React from "react"
 import styled from "styled-components"
 import Icon from "./Icon"
+import { genPattern } from "./pattern"
 import { createBuffer, setPixel, getPixel } from "./buffer"
 
 const Grid = styled.ul`
@@ -27,10 +28,11 @@ const PatternButton = styled.button`
 `
 // TODO
 function fillPattern (pattern, width, height) {
+    const basePattern = genPattern(pattern)
     const buf = createBuffer(width, height)
     for (let y = 0; y < width; y++) {
         for (let x = 0; x < height; x++) {
-            setPixel(buf, x, y, getPixel(pattern, x & 7, y & 7))
+            setPixel(buf, x, y, getPixel(basePattern, x & 7, y & 7))
         }
     }
     return buf
