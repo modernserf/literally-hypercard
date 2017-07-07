@@ -14,7 +14,6 @@ drawing TODO:
 - regular polygon
 - freeform polygon
 - freeform shape
-- more brush shapes
 - fewer generated patterns, more handmade ones
 
 # controls/ "goodies"
