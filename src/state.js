@@ -25,15 +25,45 @@ export const initState = {
     stroke: 1,
     patterns: basePatterns,
     pattern: 0,
-    undoBuffer: createBuffer(size, size),
     pixels: createBuffer(size, size),
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
     colors: [white, black, amber, navy],
+    undoStack: [],
+    redoStack: [],
 }
 
 
+function peekUndo (state) {
+    return state.undoStack[state.undoStack.length - 1]
+}
+
+function pushState(state, pixels) {
+    return {
+        pixels,
+        undoStack: state.undoStack.concat([state.pixels]),
+        redoStack: [],
+    }
+}
+
+function undo(state) {
+    if (!state.undoStack.length) { return {} }
+    return {
+        pixels: state.undoStack[state.undoStack.length - 1],
+        undoStack: state.undoStack.slice(0, -1),
+        redoStack: state.redoStack.concat([state.pixels]),
+    }
+}
+
+function redo (state) {
+    if (!state.redoStack.length) { return {} }
+    return {
+        pixels: state.redoStack[state.redoStack.length -1],
+        undoStack: state.undoStack.concat([state.pixels]),
+        redoStack: state.redoStack.slice(0, -1),
+    }
+}
 
 export function reducer (state, type, payload) {
     const brush = brushes[state.brush]
@@ -50,31 +80,23 @@ export function reducer (state, type, payload) {
     }
 
     if (type === "undo") {
-        return {
-            pixels: state.undoBuffer,
-            undoBuffer: state.pixels,
-        }
+        return undo(state)
+    }
+
+    if (type === "redo") {
+        return redo(state)
     }
 
     if (type === "clear") {
-        return {
-            undoBuffer: state.pixels,
-            pixels: createBuffer(state.width, state.height),
-        }
+        return pushState(state, createBuffer(state.width, state.height))
     }
 
     if (type === "flip horizontal") {
-        return {
-            undoBuffer: state.pixels,
-            pixels: flipHorizontal(state.pixels),
-        }
+        return pushState(state, flipHorizontal(state.pixels))
     }
 
     if (type === "flip vertical") {
-        return {
-            undoBuffer: state.pixels,
-            pixels: flipVertical(state.pixels),
-        }
+        return pushState(state, flipVertical(state.pixels))
     }
 
     if (type === "toggleFillShapes") {
@@ -116,8 +138,7 @@ export function reducer (state, type, payload) {
         return {
             lastPoint: payload,
             pencilValue: value,
-            undoBuffer: state.pixels,
-            pixels: drawPencil(copy(state.pixels), { start: payload, stroke: value })
+            ...pushState(state, drawPencil(copy(state.pixels), { start: payload, stroke: value })),
         }
     }
     if (state.tool === "pencil" && type === "drag") {
@@ -130,8 +151,7 @@ export function reducer (state, type, payload) {
     if (state.tool === "brush" && type === "down") {
         return {
             lastPoint: payload,
-            undoBuffer: state.pixels,
-            pixels: drawBrush(copy(state.pixels), {start: payload, brush, fill: state.fill, pattern})
+            ...pushState(state, drawBrush(copy(state.pixels), {start: payload, brush, fill: state.fill, pattern})),
         }
     }
     if (state.tool === "brush" && type === "drag") {
@@ -145,8 +165,7 @@ export function reducer (state, type, payload) {
     if (state.tool === "eraser" && type === "down") {
         return {
             lastPoint: payload,
-            undoBuffer: state.pixels,
-            pixels: erase(copy(state.pixels), { start: payload, brush })
+            ...pushState(state, erase(copy(state.pixels), { start: payload, brush })),
         }
     }
     if (state.tool === "eraser" && type === "drag") {
@@ -160,19 +179,23 @@ export function reducer (state, type, payload) {
     if (["line","rectangle","ellipse"].includes(state.tool) && type === "down") {
         return {
             startPoint: payload,
-            undoBuffer: state.pixels,
+            ...pushState(state, state.pixels),
         }
     }
     if (state.tool === "line" && state.startPoint && type === "drag") {
         return {
-            pixels: drawLine(copy(state.undoBuffer),
-                { start: state.startPoint, end: payload, brush, stroke: state.stroke})
+            pixels: drawLine(copy(peekUndo(state)), {
+                start: state.startPoint,
+                end: payload,
+                brush,
+                stroke: state.stroke
+            })
         }
     }
 
     if (state.tool === "rectangle" && state.startPoint && type === "drag") {
         return {
-            pixels: drawRectangle(copy(state.undoBuffer), {
+            pixels: drawRectangle(copy(peekUndo(state)), {
                 start: state.startPoint,
                 end: payload,
                 isFilled: state.fillShapes,
@@ -185,7 +208,7 @@ export function reducer (state, type, payload) {
 
     if (state.tool === "ellipse" && state.startPoint && type === "drag") {
         return {
-            pixels: drawEllipse(copy(state.undoBuffer), {
+            pixels: drawEllipse(copy(peekUndo(state)), {
                 start: state.startPoint,
                 end: payload,
                 isFilled: state.fillShapes,
@@ -205,10 +228,7 @@ export function reducer (state, type, payload) {
     }
 
     if (state.tool === "bucket" && type === "down") {
-        return {
-            undoBuffer: state.pixels,
-            pixels: drawFill(copy(state.pixels), { point: payload, fill: state.fill, pattern })
-        }
+        return pushState(drawFill(copy(state.pixels), { point: payload, fill: state.fill, pattern }))
     }
 
     if (type === "updatePattern") {
@@ -223,7 +243,8 @@ export function reducer (state, type, payload) {
         canvas.width = state.width << state.scale
         canvas.height = state.height << state.scale
         const ctx = canvas.getContext("2d")
-        setImageData(ctx, state.pixels, state.scale, 0, state.colors)
+        const data = setImageData(ctx, state.pixels, state.scale, 0, state.colors)
+        ctx.putImageData(data,0,0)
         const url = canvas.toDataURL()
         window.open(url, "_blank")
     }

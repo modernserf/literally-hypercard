@@ -15,14 +15,17 @@ import { reducer, initState } from "./state"
 const stateKey = "literally-hypercard/v2"
 
 function serialize (state) {
-    return state
+    return {
+        undoStack: [],
+        redoStack: [],
+        ...state,
+    }
 }
 
 function deserialize (state) {
     return {
+        ...initState,
         ...state,
-        patterns: initState.patterns,
-        empty: false,
     }
 }
 
