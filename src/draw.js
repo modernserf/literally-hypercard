@@ -34,7 +34,7 @@ export function drawRectangle (buffer, { start, end, isFilled, stroke, fill, bru
     if (isFilled) {
         for (let y = y0; y <= y1; y++) {
             for (let x = x0; x <= x1; x++) {
-                setPixel(buffer, x, y, fill)
+                drawPoint(buffer,x,y, null, fill, pattern)
             }
         }
     }
@@ -52,61 +52,25 @@ export function drawRectangle (buffer, { start, end, isFilled, stroke, fill, bru
     return buffer
 }
 
-export function drawEllipse (buffer, { start, end, isFilled, stroke, fill, brush, pattern }) {
-    const [x0, x1] = order(start.x, end.x)
-    const [y0, y1] = order(start.y, end.y)
-    // radii
-    const width = (x1 - x0) >> 1
-    const height = (y1 - y0) >> 1
-    if (!width || !height) { return buffer }
-
-    const xc = x0 + width
-    const yc = y0 + height
-
+function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill, isFilled, stroke, brush, pattern }) {
     const a2 = width * width
     const b2 = height * height
     const fa2 = 4 * a2
     const fb2 = 4 * b2
 
-    // fill
-    if (isFilled) {
-        for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-            for (let _x = xc - x; _x <= xc + x; _x++) {
-                setPixel(buffer, _x, yc + y - 1, fill)
-                setPixel(buffer, _x, yc - y + 1, fill)
-            }
-
-            if (sigma >= 0) {
-                sigma += fa2 * (1 - y)
-                y--
-            }
-            sigma += b2 * ((4 * x) + 6)
-        }
-
-        /* second half */
-        for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-            for (let _x = xc - x; _x <= xc + x; _x++) {
-                setPixel(buffer, _x, yc + y, fill)
-                setPixel(buffer, _x, yc - y, fill)
-            }
-
-            if (sigma >= 0) {
-                sigma += fb2 * (1 - x)
-                x--
-            }
-            sigma += a2 * ((4 * y) + 6)
-        }
-    }
-
-    // stroke
     /* first half */
     for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        drawLinePoints(buffer,[
-            {x: xc + x, y: yc + y},
-            {x: xc - x, y: yc + y},
-            {x: xc + x, y: yc - y},
-            {x: xc - x, y: yc - y},
-        ], brush, stroke, pattern)
+        const px = xc + (x * xDirection)
+        const py = yc + (y * yDirection)
+
+        if (isFilled) {
+            const [y0, y1] = order(py, yc)
+            for (let _y = y0; _y <= y1; _y++) {
+                drawPoint(buffer, px, _y, brush, fill, pattern)
+            }
+        }
+
+        drawPoint(buffer, px, py, brush, stroke, pattern)
 
         if (sigma >= 0) {
             sigma += fa2 * (1 - y)
@@ -117,12 +81,18 @@ export function drawEllipse (buffer, { start, end, isFilled, stroke, fill, brush
 
     /* second half */
     for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        drawLinePoints(buffer,[
-            {x: xc + x, y: yc + y},
-            {x: xc - x, y: yc + y},
-            {x: xc + x, y: yc - y},
-            {x: xc - x, y: yc - y},
-        ], brush, stroke, pattern)
+        const px = xc + (x * xDirection)
+        const py = yc + (y * yDirection)
+
+
+        if (isFilled) {
+            const [x0, x1] = order(px, xc)
+            for (let _x = x0; _x <= x1; _x++) {
+                drawPoint(buffer, _x, py, brush, fill, pattern)
+            }
+        }
+
+        drawPoint(buffer, px, py, brush, stroke, pattern)
 
         if (sigma >= 0) {
             sigma += fb2 * (1 - x)
@@ -130,6 +100,25 @@ export function drawEllipse (buffer, { start, end, isFilled, stroke, fill, brush
         }
         sigma += a2 * ((4 * y) + 6)
     }
+}
+
+
+export function drawEllipse (buffer, params) {
+    const { start, end } = params
+    const [x0, x1] = order(start.x, end.x)
+    const [y0, y1] = order(start.y, end.y)
+    // radii
+    const width = (x1 - x0) >> 1
+    const height = (y1 - y0) >> 1
+    if (!width || !height) { return buffer }
+
+    const xc = x0 + width
+    const yc = y0 + height
+
+    drawArc(buffer, width, height, xc, yc, -1, -1, params)
+    drawArc(buffer, width, height, xc, yc, 1, -1, params)
+    drawArc(buffer, width, height, xc, yc, -1, 1, params)
+    drawArc(buffer, width, height, xc, yc, 1, 1, params)
 
     return buffer
 }
@@ -167,8 +156,8 @@ function order (a, b) {
 }
 
 function drawPoint (buffer, px, py, brush, value, pattern ) {
-    const w = getWidth(brush)
-    const h = getHeight(brush)
+    const w = brush ? getWidth(brush) : 1
+    const h = brush ? getHeight(brush): 1
 
     const offsetX = w >> 1
     const offsetY = h >> 1
@@ -176,7 +165,7 @@ function drawPoint (buffer, px, py, brush, value, pattern ) {
         for (let x = 0; x < w; x++) {
             const ox = px + x - offsetX
             const oy = py + y - offsetY
-            if (getPixel(brush, x, y) && (!pattern || getPixel(pattern, ox & 7, oy & 7))) {
+            if ((!brush || getPixel(brush, x, y)) && (!pattern || getPixel(pattern, ox & 7, oy & 7))) {
                 setPixel(buffer, ox, oy, value)
             }
         }
