@@ -5,7 +5,7 @@ export const tools = [
 ]
 
 export const editActions = [
-    "undo",
+    "undo", "redo",
     // "cut", "copy", "paste",
     "clear",
     // "select all",
