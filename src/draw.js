@@ -2,18 +2,18 @@ import floodFillScanline from "./floodFillScanline"
 import bresenham from "bresenham"
 import { getPixel, setPixel, getWidth, getHeight, copy } from "./buffer"
 
-export function drawPencil (buffer, { start, end, stroke }) {
+export function drawPencil (buffer, { start, end, fill }) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
 
     for (let i = 0; i < points.length; i++) {
-        setPixel(buffer, points[i].x, points[i].y, stroke)
+        setPixel(buffer, points[i].x, points[i].y, fill)
     }
     return buffer
 }
 
-export function drawLine (buffer, {start, end, brush, stroke}) {
+export function drawLine (buffer, {start, end, brush, fill}) {
     const points = bresenham(start.x, start.y, end.x, end.y)
-    return drawLinePoints(buffer, points, brush, stroke)
+    return drawLinePoints(buffer, points, brush, fill)
 }
 
 export function drawBrush (buffer, {start, end, brush, fill, pattern}) {
@@ -26,7 +26,7 @@ export function erase (buffer, {start, end, brush}) {
     return drawLinePoints(buffer, points, brush, 0)
 }
 
-export function drawRectangle (buffer, { start, end, isFilled, stroke, fill, brush, pattern }) {
+export function drawRectangle (buffer, { start, end, isFilled, fill, brush, pattern }) {
     const [x0, x1] = order(start.x, end.x)
     const [y0, y1] = order(start.y, end.y)
 
@@ -37,14 +37,14 @@ export function drawRectangle (buffer, { start, end, isFilled, stroke, fill, bru
                 drawPoint(buffer,x,y, null, fill, pattern)
             }
         }
-    }
-
-    // TODO: just iterate through perimeter, not area
-    // draw sides
-    for (let y = y0; y <= y1; y++) {
-        for (let x = x0; x <= x1; x++) {
-            if (y === y0 || y === y1 || x === x0 || x === x1) {
-                drawPoint(buffer,x,y, brush, stroke, pattern)
+    } else {
+        // TODO: just iterate through perimeter, not area
+        // draw sides
+        for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+                if (y === y0 || y === y1 || x === x0 || x === x1) {
+                    drawPoint(buffer,x,y, brush, fill, pattern)
+                }
             }
         }
     }
@@ -52,7 +52,7 @@ export function drawRectangle (buffer, { start, end, isFilled, stroke, fill, bru
     return buffer
 }
 
-function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill, isFilled, stroke, brush, pattern }) {
+function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill, isFilled, brush, pattern }) {
     const a2 = width * width
     const b2 = height * height
     const fa2 = 4 * a2
@@ -68,9 +68,9 @@ function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill,
             for (let _y = y0; _y <= y1; _y++) {
                 drawPoint(buffer, px, _y, brush, fill, pattern)
             }
+        } else {
+            drawPoint(buffer, px, py, brush, fill, pattern)
         }
-
-        drawPoint(buffer, px, py, brush, stroke, pattern)
 
         if (sigma >= 0) {
             sigma += fa2 * (1 - y)
@@ -90,9 +90,9 @@ function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill,
             for (let _x = x0; _x <= x1; _x++) {
                 drawPoint(buffer, _x, py, brush, fill, pattern)
             }
+        } else {
+            drawPoint(buffer, px, py, brush, fill, pattern)
         }
-
-        drawPoint(buffer, px, py, brush, stroke, pattern)
 
         if (sigma >= 0) {
             sigma += fb2 * (1 - x)

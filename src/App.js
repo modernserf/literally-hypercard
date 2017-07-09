@@ -71,7 +71,7 @@ class App extends Component {
     }
     render() {
         if (this.state.empty) { return null }
-        const { patterns, pixels, tool, brush, fill, stroke, scale, colors, pattern } = this.state
+        const { patterns, pixels, tool, brush, fill, scale, colors, pattern } = this.state
         return (
             <Flex>
                 <div>
@@ -95,12 +95,12 @@ class App extends Component {
                     <div>
                         <h3>fill shapes</h3>
                         <button onClick={() => this.dispatch("toggleFillShapes")}>
-                            {this.state.fillShapes ? "filled" : "empty"}
+                            {this.state.fillShapes ? "filled" : "outline"}
                         </button>
                     </div>
                 </div>
                 <div className="right">
-                    <Color fill={fill} stroke={stroke}
+                    <Color fill={fill}
                         dispatch={this.dispatch}
                         colors={colors} />
                     <Patterns selected={pattern}

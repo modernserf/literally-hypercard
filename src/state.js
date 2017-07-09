@@ -22,7 +22,6 @@ export const initState = {
     tool: "brush",
     brush: 0,
     fill: 1,
-    stroke: 1,
     patterns: basePatterns,
     pattern: 0,
     pixels: createBuffer(size, size),
@@ -109,12 +108,6 @@ export function reducer (state, type, payload) {
         }
     }
 
-    if (type === "setStroke") {
-        return {
-            stroke: payload,
-        }
-    }
-
     if (type === "setPattern") {
         return {
             pattern: payload,
@@ -122,9 +115,7 @@ export function reducer (state, type, payload) {
     }
 
     if (type === "setColorValue") {
-        const { color, index } = payload
-
-        state.colors[index] = color
+        state.colors[state.fill] = payload
         return {
             colors: state.colors,
         }
@@ -133,18 +124,18 @@ export function reducer (state, type, payload) {
     // brushlike tools -- accumulative preview
     if (state.tool === "pencil" && type === "down") {
         // TODO: how should "erasing" work?
-        // const value = getPixel(state.pixels, payload.x, payload.y) ? 0 : state.stroke
-        const value = state.stroke
+        // const value = getPixel(state.pixels, payload.x, payload.y) ? 0 : state.fill
+        const value = state.fill
         return {
             lastPoint: payload,
             pencilValue: value,
-            ...pushState(state, drawPencil(copy(state.pixels), { start: payload, stroke: value })),
+            ...pushState(state, drawPencil(copy(state.pixels), { start: payload, fill: value })),
         }
     }
     if (state.tool === "pencil" && type === "drag") {
         return {
             lastPoint: payload,
-            pixels: drawPencil(state.pixels, { start: state.lastPoint, end: payload, stroke: state.pencilValue }),
+            pixels: drawPencil(state.pixels, { start: state.lastPoint, end: payload, fill: state.pencilValue }),
         }
     }
 
@@ -188,7 +179,7 @@ export function reducer (state, type, payload) {
                 start: state.startPoint,
                 end: payload,
                 brush,
-                stroke: state.stroke
+                fill: state.fill
             })
         }
     }
@@ -200,7 +191,6 @@ export function reducer (state, type, payload) {
                 end: payload,
                 isFilled: state.fillShapes,
                 brush,
-                stroke: state.stroke,
                 fill: state.fill
             })
         }
@@ -213,7 +203,6 @@ export function reducer (state, type, payload) {
                 end: payload,
                 isFilled: state.fillShapes,
                 brush,
-                stroke: state.stroke,
                 fill: state.fill
             })
         }

@@ -41,26 +41,14 @@ function Range ({ onChange, ...props }) {
 }
 
 export default class Color extends React.Component {
-    state = { selectedEditColor: 0 }
     render () {
-        const { fill, stroke, dispatch, colors } = this.props
-        const { selectedEditColor } = this.state
+        const { fill, dispatch, colors } = this.props
         const hexColors = colors.map(colorToHex)
 
         return (
             <div>
                 <h3>colors</h3>
                 <ColorGrid>
-                    <Label>Stroke</Label>
-                    {hexColors.map((color, i) => (
-                        <div key={i}>
-                            <Button active={stroke === i}
-                                onClick={() => dispatch("setStroke", i)}>
-                                <ColorBlock style={{ backgroundColor: color }} />
-                            </Button>
-                        </div>
-                    ))}
-                    <Label>Fill</Label>
                     {hexColors.map((color, i) => (
                         <div key={i}>
                             <Button active={fill === i}
@@ -72,25 +60,15 @@ export default class Color extends React.Component {
                 </ColorGrid>
                 <details>
                     <summary>Edit Colors</summary>
-                    <div>
-                        <ColorGrid>
-                            {hexColors.map((color, i) => (
-                                <Button key={i} active={selectedEditColor === i}
-                                    onClick={() => this.setState({ selectedEditColor: i })}>
-                                    <ColorBlock style={{ backgroundColor: color }} />
-                                </Button>
-                            ))}
-                        </ColorGrid>
-                    </div>
                     {["r","g","b"].map((id) => (
                         <div key={id}>
                             {id}
-                            <Range value={colors[selectedEditColor][id]}
+                            <Range value={colors[fill][id]}
                                 min={0} max={0xFF} step={0x33}
                                 onChange={(value) => {
                                     dispatch("setColorValue", {
-                                        index: selectedEditColor,
-                                        color: {...colors[selectedEditColor], [id]: value }
+                                        ...colors[fill],
+                                        [id]: value
                                     })
                                 }}/>
                         </div>
