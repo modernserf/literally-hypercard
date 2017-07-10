@@ -9,7 +9,6 @@ drawing TODO:
 - replace colors
 
 # drawing
-- roundrect
 - spray can
 - regular polygon
 - freeform polygon

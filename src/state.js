@@ -3,7 +3,11 @@ import { createPattern } from "./pattern"
 import { createBuffer, copy, flipHorizontal, flipVertical, setImageData } from "./buffer"
 import { hexToColor } from "./palette"
 
-import { drawBrush, drawPencil, drawRectangle, drawRoundRect, erase, drawLine, drawEllipse, drawFill } from "./draw"
+import {
+    drawBrush, drawPencil, erase,
+    drawRectangle, drawRoundRect, drawLine, drawEllipse,
+    drawFreeformStart, drawFreeformShapeOutline, closeFreeformShape,
+    drawFill } from "./draw"
 
 
 const size = 256
@@ -228,6 +232,56 @@ export function reducer (state, type, payload) {
             pencilValue: null,
             startPoint: null,
             lastPoint: null,
+        }
+    }
+
+    if (state.tool === "freeform" && type === "down") {
+        const { freeformState, buffer } = drawFreeformStart(copy(state.pixels), {
+            start: payload,
+            brush,
+            fill: state.fill,
+            pattern,
+            isFilled: state.fillShapes,
+        })
+        return {
+            ...pushState(state, buffer),
+            freeformState,
+            startPoint: payload,
+            prevPoint: payload,
+        }
+    }
+
+    if (state.tool === "freeform" && type === "drag") {
+        const { freeformState, buffer } = drawFreeformShapeOutline(state.pixels, state.freeformState, {
+            brush,
+            pattern,
+            fill: state.fill,
+            start: state.prevPoint,
+            end: payload,
+            isFilled: state.fillShapes,
+        })
+        return {
+            pixels: buffer,
+            freeformState,
+            prevPoint: payload,
+        }
+    }
+
+    if (state.tool === "freeform" && type === "up") {
+        if (!state.freeformState) { return {} }
+        const buffer = closeFreeformShape(state.pixels, state.freeformState, {
+            brush,
+            pattern,
+            fill: state.fill,
+            start: state.startPoint,
+            end: state.prevPoint,
+            isFilled: state.fillShapes,
+        })
+        return {
+            pixels: buffer,
+            freeformState: null,
+            startPoint: null,
+            prevPoint: null,
         }
     }
 

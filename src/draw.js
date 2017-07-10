@@ -1,6 +1,6 @@
 import floodFillScanline from "./floodFillScanline"
 import bresenham from "bresenham"
-import { getPixel, setPixel, getWidth, getHeight, copy } from "./buffer"
+import { getPixel, setPixel, getWidth, getHeight, copy, createBuffer } from "./buffer"
 
 export function drawPencil (buffer, { start, end, fill }) {
     const points = end ? bresenham(start.x, start.y, end.x, end.y) : [start]
@@ -190,6 +190,58 @@ export function drawFill (buffer, { point, fill, pattern }) {
         }
     }
     floodFillScanline(point.x, point.y, width, height, false, test, paint)
+    return buffer
+}
+
+export function drawFreeformStart (buffer, {start, brush, fill, pattern, isFilled}) {
+    const freeformState = createBuffer(getWidth(buffer), getHeight(buffer))
+    drawPoint(freeformState, start.x, start.y, null, 1, null)
+    if (isFilled) {
+        drawPoint(buffer, start.x, start.y, null, fill, null)
+    } else {
+        drawPoint(buffer, start.x, start.y, brush, fill, pattern)
+    }
+    return { freeformState, buffer }
+}
+
+export function drawFreeformShapeOutline (buffer, freeformState, {start, end, brush, fill, pattern, isFilled}) {
+    const points = bresenham(start.x, start.y, end.x, end.y)
+    drawLinePoints(freeformState, points, null, 1, null)
+    if (isFilled) {
+        drawLinePoints(buffer, points, null, fill, null)
+    } else {
+        drawLinePoints(buffer, points, brush, fill, pattern)
+    }
+    return { freeformState, buffer }
+}
+
+export function closeFreeformShape (buffer, freeformState, { start, end, brush, fill, pattern, isFilled }) {
+    const points = bresenham(start.x, start.y, end.x, end.y)
+    drawLinePoints(freeformState, points, null, 1, null)
+
+
+    if (isFilled) {
+        const width = getWidth(buffer)
+        const height = getHeight(buffer)
+        for (let y = 0; y < height; y++) {
+            let lastPixel = 0
+            let startAt = 0
+            for (let x = 0; x < width; x++) {
+                const currentPixel = getPixel(freeformState, x, y)
+                if (!currentPixel && lastPixel && !startAt) {
+                    startAt = x
+                } else if (!currentPixel && lastPixel && startAt) {
+                    for (let _x = startAt; _x < x; _x++) {
+                        drawPoint(buffer, _x, y, null, fill, pattern)
+                    }
+                    startAt = 0
+                }
+                lastPixel = currentPixel
+            }
+        }
+    } else {
+        drawLinePoints(buffer, points, brush, fill, pattern)
+    }
     return buffer
 }
 

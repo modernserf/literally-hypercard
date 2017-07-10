@@ -1,6 +1,7 @@
 export const tools = [
     "pencil", "brush", "eraser",
     "line", "rectangle", "ellipse", "roundrect",
+    "freeform",
     "bucket",
     // "select"
 ]
