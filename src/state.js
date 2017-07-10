@@ -1,3 +1,4 @@
+import { pick } from "lodash"
 import { brushes, patterns as basePatterns } from "./resources"
 import { createPattern } from "./pattern"
 import { createBuffer, copy, flipHorizontal, flipVertical, setImageData } from "./buffer"
@@ -7,16 +8,11 @@ import {
     drawBrush, drawPencil, erase,
     drawRectangle, drawRoundRect, drawLine, drawEllipse,
     drawFreeformStart, drawFreeformShapeOutline, closeFreeformShape,
+    drawFreeformPoly, closeFreeformPoly,
     drawFill } from "./draw"
 
 
 const size = 256
-
-const white = hexToColor("#FFFFFF")
-const black = hexToColor("#000000")
-const navy = hexToColor("#333366")
-const amber = hexToColor("#CC9900")
-
 
 export const initState = {
     empty: false,
@@ -32,9 +28,30 @@ export const initState = {
     startPoint: null,
     lastPoint: null,
     fillShapes: true,
-    colors: [white, black, amber, navy],
+    colors: [
+        hexToColor("#FFFFFF"),
+        hexToColor("#000000"),
+        hexToColor("#333366"),
+        hexToColor("#CC9900"),
+    ],
     undoStack: [],
     redoStack: [],
+}
+
+export function serialize (state) {
+    return pick(state, [
+        "width","height","scale",
+        "tool", "brush","fill", "pattern", "fillShapes",
+        "patterns", "colors",
+        "pixels"
+    ])
+}
+
+export function deserialize (state) {
+    return {
+        ...initState,
+        ...state,
+    }
 }
 
 
@@ -232,6 +249,54 @@ export function reducer (state, type, payload) {
             pencilValue: null,
             startPoint: null,
             lastPoint: null,
+        }
+    }
+
+    if (state.tool === "freeformPoly" && type === "down" && !state.polyPoints) {
+        return {
+            ...pushState(state, copy(state.pixels)),
+            polyPoints: [payload]
+        }
+    }
+
+    if (state.tool === "freeformPoly" && type === "down" && state.polyPoints) {
+        const points = state.polyPoints.concat([payload])
+        if (points.length > 1 && points[0].x === payload.x && points[0].y === payload.y) {
+            return {
+                pixels: closeFreeformPoly(copy(peekUndo(state)), {
+                    points,
+                    brush,
+                    fill: state.fill,
+                    pattern,
+                    isFilled: state.fillShapes,
+                }),
+                polyPoints: null,
+            }
+        } else {
+            return {
+                pixels: drawFreeformPoly(copy(peekUndo(state)), {
+                    points,
+                    brush,
+                    fill: state.fill,
+                    pattern,
+                    isFilled: state.fillShapes,
+                }),
+                polyPoints: points,
+            }
+        }
+
+
+    }
+
+    if (state.tool === "freeformPoly" && type === "move" && state.polyPoints) {
+        return {
+            pixels: drawFreeformPoly(copy(peekUndo(state)), {
+                points: state.polyPoints.concat([payload]),
+                brush,
+                fill: state.fill,
+                pattern,
+                isFilled: state.fillShapes,
+            }),
         }
     }
 

@@ -12,7 +12,6 @@ drawing TODO:
 - spray can
 - regular polygon
 - freeform polygon
-- freeform shape
 - fewer generated patterns, more handmade ones
 - edit brushes
 

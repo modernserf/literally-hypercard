@@ -10,25 +10,9 @@ import Patterns from "./Patterns"
 import Canvas from "./Canvas"
 import Brushes from "./Brushes"
 import Tools from "./Tools"
-import { reducer, initState } from "./state"
+import { reducer, initState, serialize, deserialize } from "./state"
 
 const stateKey = "literally-hypercard/v2"
-
-function serialize (state) {
-    return {
-        undoStack: [],
-        redoStack: [],
-        ...state,
-    }
-}
-
-function deserialize (state) {
-    return {
-        ...initState,
-        ...state,
-    }
-}
-
 
 const Flex = styled.div`
     display: flex;

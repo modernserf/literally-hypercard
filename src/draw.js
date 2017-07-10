@@ -52,56 +52,6 @@ export function drawRectangle (buffer, { start, end, isFilled, fill, brush, patt
     return buffer
 }
 
-function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill, isFilled, brush, pattern }) {
-    const a2 = width * width
-    const b2 = height * height
-    const fa2 = 4 * a2
-    const fb2 = 4 * b2
-
-    /* first half */
-    for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
-        const px = xc + (x * xDirection)
-        const py = yc + (y * yDirection)
-
-        if (isFilled) {
-            const [y0, y1] = order(py, yc)
-            for (let _y = y0; _y <= y1; _y++) {
-                drawPoint(buffer, px, _y, brush, fill, pattern)
-            }
-        } else {
-            drawPoint(buffer, px, py, brush, fill, pattern)
-        }
-
-        if (sigma >= 0) {
-            sigma += fa2 * (1 - y)
-            y--
-        }
-        sigma += b2 * ((4 * x) + 6)
-    }
-
-    /* second half */
-    for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
-        const px = xc + (x * xDirection)
-        const py = yc + (y * yDirection)
-
-
-        if (isFilled) {
-            const [x0, x1] = order(px, xc)
-            for (let _x = x0; _x <= x1; _x++) {
-                drawPoint(buffer, _x, py, brush, fill, pattern)
-            }
-        } else {
-            drawPoint(buffer, px, py, brush, fill, pattern)
-        }
-
-        if (sigma >= 0) {
-            sigma += fb2 * (1 - x)
-            x--
-        }
-        sigma += a2 * ((4 * y) + 6)
-    }
-}
-
 export function drawRoundRect (buffer, params) {
     const { start, end, brush, fill, pattern, isFilled } = params
     const [x0, x1] = order(start.x, end.x)
@@ -167,6 +117,36 @@ export function drawEllipse (buffer, params) {
     return buffer
 }
 
+export function drawFreeformPoly (buffer, { points, fill, pattern, brush, isFilled }) {
+    const connectedPoints = points.slice(1).reduce((arr, point) => {
+        const last = arr[arr.length - 1]
+        return arr.concat(bresenham(last.x, last.y, point.x, point.y))
+    }, [points[0]])
+
+    if (isFilled) {
+        drawLinePoints(buffer, connectedPoints, null, fill, null)
+    } else {
+        drawLinePoints(buffer, connectedPoints, brush, fill, pattern)
+    }
+    return buffer
+}
+
+export function closeFreeformPoly (buffer, { points, fill, pattern, brush, isFilled }) {
+    const connectedPoints = points.slice(1).reduce((arr, point) => {
+        const last = arr[arr.length - 1]
+        return arr.concat(bresenham(last.x, last.y, point.x, point.y))
+    }, [points[0]])
+
+    if (isFilled) {
+        const freeformState = createBuffer(getWidth(buffer), getHeight(buffer))
+        drawLinePoints(freeformState, connectedPoints, null, fill, null)
+        fillShape(buffer, freeformState, fill, pattern)
+    } else {
+        drawLinePoints(buffer, connectedPoints, brush, fill, pattern)
+    }
+    return buffer
+}
+
 export function drawFill (buffer, { point, fill, pattern }) {
     const width = getWidth(buffer)
     const height = getHeight(buffer)
@@ -221,24 +201,7 @@ export function closeFreeformShape (buffer, freeformState, { start, end, brush, 
 
 
     if (isFilled) {
-        const width = getWidth(buffer)
-        const height = getHeight(buffer)
-        for (let y = 0; y < height; y++) {
-            let lastPixel = 0
-            let startAt = 0
-            for (let x = 0; x < width; x++) {
-                const currentPixel = getPixel(freeformState, x, y)
-                if (!currentPixel && lastPixel && !startAt) {
-                    startAt = x
-                } else if (!currentPixel && lastPixel && startAt) {
-                    for (let _x = startAt; _x < x; _x++) {
-                        drawPoint(buffer, _x, y, null, fill, pattern)
-                    }
-                    startAt = 0
-                }
-                lastPixel = currentPixel
-            }
-        }
+        fillShape(buffer, freeformState, fill, pattern)
     } else {
         drawLinePoints(buffer, points, brush, fill, pattern)
     }
@@ -246,6 +209,27 @@ export function closeFreeformShape (buffer, freeformState, { start, end, brush, 
 }
 
 // utilities
+
+function fillShape (buffer, freeformState, fill, pattern) {
+    const width = getWidth(buffer)
+    const height = getHeight(buffer)
+    for (let y = 0; y < height; y++) {
+        let lastPixel = 0
+        let startAt = 0
+        for (let x = 0; x < width; x++) {
+            const currentPixel = getPixel(freeformState, x, y)
+            if (!currentPixel && lastPixel && !startAt) {
+                startAt = x
+            } else if (!currentPixel && lastPixel && startAt) {
+                for (let _x = startAt; _x < x; _x++) {
+                    drawPoint(buffer, _x, y, null, fill, pattern)
+                }
+                startAt = 0
+            }
+            lastPixel = currentPixel
+        }
+    }
+}
 
 function order (a, b) {
     return a < b ? [a,b] : [b,a]
@@ -273,4 +257,54 @@ function drawLinePoints(buffer, points, brush, value, pattern) {
         drawPoint(buffer, points[i].x, points[i].y, brush, value, pattern)
     }
     return buffer
+}
+
+function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill, isFilled, brush, pattern }) {
+    const a2 = width * width
+    const b2 = height * height
+    const fa2 = 4 * a2
+    const fb2 = 4 * b2
+
+    /* first half */
+    for (let x = 0, y = height, sigma = 2*b2+a2*(1-2*height); b2*x <= a2*y; x++) {
+        const px = xc + (x * xDirection)
+        const py = yc + (y * yDirection)
+
+        if (isFilled) {
+            const [y0, y1] = order(py, yc)
+            for (let _y = y0; _y <= y1; _y++) {
+                drawPoint(buffer, px, _y, brush, fill, pattern)
+            }
+        } else {
+            drawPoint(buffer, px, py, brush, fill, pattern)
+        }
+
+        if (sigma >= 0) {
+            sigma += fa2 * (1 - y)
+            y--
+        }
+        sigma += b2 * ((4 * x) + 6)
+    }
+
+    /* second half */
+    for (let x = width, y = 0, sigma = 2*a2+b2*(1-2*width); a2*y <= b2*x; y++) {
+        const px = xc + (x * xDirection)
+        const py = yc + (y * yDirection)
+
+
+        if (isFilled) {
+            const [x0, x1] = order(px, xc)
+            for (let _x = x0; _x <= x1; _x++) {
+                drawPoint(buffer, _x, py, brush, fill, pattern)
+            }
+        } else {
+            drawPoint(buffer, px, py, brush, fill, pattern)
+        }
+
+        if (sigma >= 0) {
+            sigma += fb2 * (1 - x)
+            x--
+        }
+        sigma += a2 * ((4 * y) + 6)
+    }
 }
