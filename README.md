@@ -15,6 +15,7 @@ drawing TODO:
 - freeform polygon
 - freeform shape
 - fewer generated patterns, more handmade ones
+- edit brushes
 
 # controls/ "goodies"
 - snap to grid

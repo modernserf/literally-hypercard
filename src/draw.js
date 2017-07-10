@@ -37,15 +37,15 @@ export function drawRectangle (buffer, { start, end, isFilled, fill, brush, patt
                 drawPoint(buffer,x,y, null, fill, pattern)
             }
         }
+    // draw sides
     } else {
-        // TODO: just iterate through perimeter, not area
-        // draw sides
         for (let y = y0; y <= y1; y++) {
-            for (let x = x0; x <= x1; x++) {
-                if (y === y0 || y === y1 || x === x0 || x === x1) {
-                    drawPoint(buffer,x,y, brush, fill, pattern)
-                }
-            }
+            drawPoint(buffer,x0,y, brush, fill, pattern)
+            drawPoint(buffer,x1,y, brush, fill, pattern)
+        }
+        for (let x = x0; x <= x1; x++) {
+            drawPoint(buffer,x,y0, brush, fill, pattern)
+            drawPoint(buffer,x,y1, brush, fill, pattern)
         }
     }
 
@@ -102,6 +102,50 @@ function drawArc (buffer, width, height, xc, yc, xDirection, yDirection, { fill,
     }
 }
 
+export function drawRoundRect (buffer, params) {
+    const { start, end, brush, fill, pattern, isFilled } = params
+    const [x0, x1] = order(start.x, end.x)
+    const [y0, y1] = order(start.y, end.y)
+    const minWidth = (x1 - x0) >> 1
+    const minHeight = (y1 - y0) >> 1
+    if (!minHeight || !minWidth) { return buffer }
+
+    const width = Math.min(9, minWidth)
+    const height = Math.min(9, minHeight)
+
+    drawArc(buffer, width, height, x0 + width, y0 + height, -1, -1, params)
+    drawArc(buffer, width, height, x0 + width, y1 - height, -1, 1, params)
+    drawArc(buffer, width, height, x1 - width, y0 + height, 1, -1, params)
+    drawArc(buffer, width, height, x1 - width, y1 - height, 1, 1, params)
+
+    if (isFilled) {
+        for (let y = y0 + height; y <= y1 - height; y++) {
+            for (let x = x0; x <= x1; x++) {
+                drawPoint(buffer, x, y, brush, fill, pattern)
+            }
+        }
+
+        for (let x = x0 + width; x <= x1 - width; x++) {
+            for (let y = y0 ; y <= y0 + height; y++) {
+                drawPoint(buffer, x, y, brush, fill, pattern)
+            }
+            for (let y = y1 - height; y <= y1; y++) {
+                drawPoint(buffer, x, y, brush, fill, pattern)
+            }
+        }
+    } else {
+        for (let y = y0 + height; y <= y1 - height; y++) {
+            drawPoint(buffer,x0,y, brush, fill, pattern)
+            drawPoint(buffer,x1,y, brush, fill, pattern)
+        }
+        for (let x = x0 + width; x <= x1 - width; x++) {
+            drawPoint(buffer,x,y0, brush, fill, pattern)
+            drawPoint(buffer,x,y1, brush, fill, pattern)
+        }
+    }
+
+    return buffer
+}
 
 export function drawEllipse (buffer, params) {
     const { start, end } = params
@@ -155,7 +199,7 @@ function order (a, b) {
     return a < b ? [a,b] : [b,a]
 }
 
-function drawPoint (buffer, px, py, brush, value, pattern ) {
+function drawPoint (buffer, px, py, brush, value, pattern) {
     const w = brush ? getWidth(brush) : 1
     const h = brush ? getHeight(brush): 1
 

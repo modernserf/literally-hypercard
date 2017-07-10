@@ -3,7 +3,7 @@ import { createPattern } from "./pattern"
 import { createBuffer, copy, flipHorizontal, flipVertical, setImageData } from "./buffer"
 import { hexToColor } from "./palette"
 
-import { drawBrush, drawPencil, drawRectangle, erase, drawLine, drawEllipse, drawFill } from "./draw"
+import { drawBrush, drawPencil, drawRectangle, drawRoundRect, erase, drawLine, drawEllipse, drawFill } from "./draw"
 
 
 const size = 256
@@ -167,7 +167,7 @@ export function reducer (state, type, payload) {
     }
 
     // shapelike tools -- stateless preview
-    if (["line","rectangle","ellipse"].includes(state.tool) && type === "down") {
+    if (["line","rectangle","ellipse","roundrect"].includes(state.tool) && type === "down") {
         return {
             startPoint: payload,
             ...pushState(state, state.pixels),
@@ -191,7 +191,8 @@ export function reducer (state, type, payload) {
                 end: payload,
                 isFilled: state.fillShapes,
                 brush,
-                fill: state.fill
+                fill: state.fill,
+                pattern,
             })
         }
     }
@@ -203,12 +204,26 @@ export function reducer (state, type, payload) {
                 end: payload,
                 isFilled: state.fillShapes,
                 brush,
-                fill: state.fill
+                fill: state.fill,
+                pattern,
             })
         }
     }
 
-    if (["pencil","brush","eraser","line","rectangle","ellipse"].includes(state.tool) && type === "up") {
+    if (state.tool === "roundrect" && state.startPoint && type === "drag") {
+        return {
+            pixels: drawRoundRect(copy(peekUndo(state)), {
+                start: state.startPoint,
+                end: payload,
+                isFilled: state.fillShapes,
+                brush,
+                fill: state.fill,
+                pattern,
+            })
+        }
+    }
+
+    if (["pencil","brush","eraser","line","rectangle","ellipse","roundrect"].includes(state.tool) && type === "up") {
         return {
             pencilValue: null,
             startPoint: null,

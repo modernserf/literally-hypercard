@@ -9,12 +9,6 @@ const ColorGrid = styled.div`
     grid-gap: 4px;
 `
 
-const Label = styled.div`
-    grid-column: 1 / 5;
-    font-weight: bold;
-    font-size: 12px;
-`
-
 const Button = styled.button`
     appearance: none;
     display: block;
